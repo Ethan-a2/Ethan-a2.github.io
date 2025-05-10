@@ -1,5 +1,54 @@
 <?xml version='1.0' encoding='UTF-8'?>
-<rss xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/" version="2.0"><channel><title>Brue Leo's Blog</title><link>https://Ethan-a2.github.io</link><description>Freedom is not free.</description><copyright>Brue Leo's Blog</copyright><docs>http://www.rssboard.org/rss-specification</docs><generator>python-feedgen</generator><image><url>https://avatars.githubusercontent.com/u/61342241?v=4&amp;size=64</url><title>avatar</title><link>https://Ethan-a2.github.io</link></image><lastBuildDate>Sat, 03 May 2025 06:19:51 +0000</lastBuildDate><managingEditor>Brue Leo's Blog</managingEditor><ttl>60</ttl><webMaster>Brue Leo's Blog</webMaster><item><title>docker安装浏览器</title><link>https://Ethan-a2.github.io/post/docker-an-zhuang-liu-lan-qi.html</link><description>docker-compose.yml:
+<rss xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/" version="2.0"><channel><title>Brue Leo's Blog</title><link>https://Ethan-a2.github.io</link><description>Freedom is not free.</description><copyright>Brue Leo's Blog</copyright><docs>http://www.rssboard.org/rss-specification</docs><generator>python-feedgen</generator><image><url>https://avatars.githubusercontent.com/u/61342241?v=4&amp;size=64</url><title>avatar</title><link>https://Ethan-a2.github.io</link></image><lastBuildDate>Sat, 10 May 2025 02:48:35 +0000</lastBuildDate><managingEditor>Brue Leo's Blog</managingEditor><ttl>60</ttl><webMaster>Brue Leo's Blog</webMaster><item><title>MNN multiPose demo</title><link>https://Ethan-a2.github.io/post/MNN%20multiPose%20demo.html</link><description>
+[MNN/demo/exec at master · Ethan-a2/MNN](https://github.com/Ethan-a2/MNN/tree/master/demo/exec)
+
+# build
+```
+cd path/to/MNN
+mkdir build
+cd build
+cmake -G 'NMake Makefiles' -DCMAKE_BUILD_TYPE=Release -DMNN_BUILD_DEMO=ON -DMNN_BUILD_CONVERTER=ON ..
+make
+```
+
+
+# convert
+```
+./MNNConvert -f TF --modelFile model-mobilenet_v1_075.pb  --MNNModel model-mobilenet_v1_075.mnn --bizCode biz
+```
+
+# excute
+```
+./multiPose.out model-mobilenet_v1_075.mnn  multipose_input.png  pose.png
+```
+
+
+示例图片在这个路径:
+```
+../_static/images/start/multipose_input.png
+```
+
+
+参考:
+https://mnn-docs.readthedocs.io/en/2.9.6/_sources/start/demo.md.txt
+
+# 报错信息
+```
+CPU Group: [ 2  0  3  1 ], 800000 - 3500000
+The device supports: i8sdot:0, fp16:0, i8mm: 0, sve2: 0, sme2: 0
+        **Tensor shape**: 1, 225, 3, 225, 
+Error for compute convolution shape, inputCount:3, outputCount:24, KH:3, KW:3, group:1
+inputChannel: 225, batch:1, width:225, height:3. Input data channel may be mismatch with filter channel count
+Compute Shape Error for MobilenetV1/add
+Invalid Tensor, the session may not be ready
+Can't run session because not resized
+main, 381, cost time: 0.004000 ms
+main, 405, cost time: 0.001000 ms
+```
+
+
+# 解决办法一
+将输入的图像转换为tf模块的NHWC的格式。</description><guid isPermaLink="true">https://Ethan-a2.github.io/post/MNN%20multiPose%20demo.html</guid><pubDate>Sat, 10 May 2025 02:48:11 +0000</pubDate></item><item><title>docker安装浏览器</title><link>https://Ethan-a2.github.io/post/docker-an-zhuang-liu-lan-qi.html</link><description>docker-compose.yml:
 ```
 services:
   firefox:
