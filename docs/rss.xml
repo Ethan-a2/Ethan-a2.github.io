@@ -1,5 +1,57 @@
 <?xml version='1.0' encoding='UTF-8'?>
-<rss xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/" version="2.0"><channel><title>Brue Leo's Blog</title><link>https://Ethan-a2.github.io</link><description>Freedom is not free.</description><copyright>Brue Leo's Blog</copyright><docs>http://www.rssboard.org/rss-specification</docs><generator>python-feedgen</generator><image><url>https://avatars.githubusercontent.com/u/61342241?v=4&amp;size=64</url><title>avatar</title><link>https://Ethan-a2.github.io</link></image><lastBuildDate>Sun, 11 May 2025 15:29:38 +0000</lastBuildDate><managingEditor>Brue Leo's Blog</managingEditor><ttl>60</ttl><webMaster>Brue Leo's Blog</webMaster><item><title>Qwen3性能评测-evalscope</title><link>https://Ethan-a2.github.io/post/Qwen3-xing-neng-ping-ce--evalscope.html</link><description>
+<rss xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/" version="2.0"><channel><title>Brue Leo's Blog</title><link>https://Ethan-a2.github.io</link><description>Freedom is not free.</description><copyright>Brue Leo's Blog</copyright><docs>http://www.rssboard.org/rss-specification</docs><generator>python-feedgen</generator><image><url>https://avatars.githubusercontent.com/u/61342241?v=4&amp;size=64</url><title>avatar</title><link>https://Ethan-a2.github.io</link></image><lastBuildDate>Wed, 14 May 2025 15:01:20 +0000</lastBuildDate><managingEditor>Brue Leo's Blog</managingEditor><ttl>60</ttl><webMaster>Brue Leo's Blog</webMaster><item><title>llama3.cpp基于NVIDIA1060进行图片对话</title><link>https://Ethan-a2.github.io/post/llama3.cpp-ji-yu-NVIDIA1060-jin-xing-tu-pian-dui-hua.html</link><description>
+# 环境
+显卡：NVIDIA GeForce GTX 1060
+图片对话模型：SmolVLM-500M-Instruct
+
+
+
+# 编译
+
+```
+sudo apt-get install libssl-dev libcurl4-openssl-dev
+
+git clone https://github.com/ggml-org/llama.cpp.git
+cmake -B build -DGGML_CUDA=ON -DCMAKE_CUDA_ARCHITECTURES=61
+make -j16
+```
+
+
+在这里[Ollama GPU支持 - Nvidia和AMD GPU兼容性 | LlamaFactory | LlamaFactory](https://www.llamafactory.cn/ollama-docs/gpu.html#google_vignette)找到1060的架构是6.1，编译时指定-DCMAKE_CUDA_ARCHITECTURES=61
+
+
+# 模型GGUF下载
+```
+export HF_HOME=/media/dataset/hf
+export HF_ENDPOINT=https://hf-mirror.com
+export HUGGINGFACE_TOKEN=xxx
+
+huggingface-cli download ggml-org/SmolVLM-500M-Instruct-GGUF
+huggingface-cli download ggml-org/SmolVLM-500M-Instruct-GGUF --local-dir .
+```
+
+
+# 运行llama3.cpp
+```
+export PATH'$PATH:/path/to/llama.cpp/build/bin
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/path/to/llama.cpp/build/bin
+
+llama-server -m ./SmolVLM-500M-Instruct-Q8_0.gguf --mmproj mmproj-SmolVLM-500M-Instruct-Q8_0.gguf --host 0.0.0.0 --port 8080 -ngl 100
+```
+
+
+输出日志:
+```
+User: Hello&lt;end_of_utterance&gt;
+Assistant: Hi there&lt;end_of_utterance&gt;
+User: How are you?&lt;end_of_utterance&gt;
+Assistant:'
+main: server is listening on http://0.0.0.0:8080 - starting the main loop
+srv  update_slots: all slots are idle
+```
+
+
+- 用浏览器打开网址，比如 192.168.3.100:1080，即可以进行图片对话。</description><guid isPermaLink="true">https://Ethan-a2.github.io/post/llama3.cpp-ji-yu-NVIDIA1060-jin-xing-tu-pian-dui-hua.html</guid><pubDate>Wed, 14 May 2025 15:00:48 +0000</pubDate></item><item><title>Qwen3性能评测-evalscope</title><link>https://Ethan-a2.github.io/post/Qwen3-xing-neng-ping-ce--evalscope.html</link><description>
 
 
 
