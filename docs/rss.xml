@@ -1,5 +1,73 @@
 <?xml version='1.0' encoding='UTF-8'?>
-<rss xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/" version="2.0"><channel><title>Brue Leo's Blog</title><link>https://Ethan-a2.github.io</link><description>Freedom is not free.</description><copyright>Brue Leo's Blog</copyright><docs>http://www.rssboard.org/rss-specification</docs><generator>python-feedgen</generator><image><url>https://avatars.githubusercontent.com/u/61342241?v=4&amp;size=64</url><title>avatar</title><link>https://Ethan-a2.github.io</link></image><lastBuildDate>Sun, 18 May 2025 04:22:09 +0000</lastBuildDate><managingEditor>Brue Leo's Blog</managingEditor><ttl>60</ttl><webMaster>Brue Leo's Blog</webMaster><item><title>minimind.inference</title><link>https://Ethan-a2.github.io/post/minimind.inference.html</link><description>
+<rss xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/" version="2.0"><channel><title>Brue Leo's Blog</title><link>https://Ethan-a2.github.io</link><description>Freedom is not free.</description><copyright>Brue Leo's Blog</copyright><docs>http://www.rssboard.org/rss-specification</docs><generator>python-feedgen</generator><image><url>https://avatars.githubusercontent.com/u/61342241?v=4&amp;size=64</url><title>avatar</title><link>https://Ethan-a2.github.io</link></image><lastBuildDate>Sun, 29 Jun 2025 09:16:51 +0000</lastBuildDate><managingEditor>Brue Leo's Blog</managingEditor><ttl>60</ttl><webMaster>Brue Leo's Blog</webMaster><item><title>Android K70 Pro llama.cpp Gemma-3n</title><link>https://Ethan-a2.github.io/post/Android%20K70%20Pro%20llama.cpp%20Gemma-3n.html</link><description># 设备
+- K70 Pro Adreno 750 (Snapdragon 8 Gen 3)
+- NDK26
+- Adreno使用opencl编译
+
+
+# 模型
+- gemma-3n-E2B-it-UD-Q4_K_XL.gguf
+
+
+# Android CPU上运行
+```
+ndk-r26d:
+cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK/build/cmake/android.toolchain.cmake -DANDROID_ABI=arm64-v8a -DANDROID_PLATFORM=android-28 -DCMAKE_C_FLAGS='-march=armv8.7a' -DCMAKE_CXX_FLAGS='-march=armv8.7a' -DGGML_OPENMP=OFF  -DGGML_LLAMAFILE=OFF -DLLAMA_CURL=OFF -B build-android
+cmake --build build -j16
+cmake --install build-android --prefix ../install
+
+cd ../install
+adb shell 'mkdir /data/local/tmp/llama.cpp'
+adb push install/. /data/local/tmp/llama.cpp/
+adb push {model}.gguf /data/local/tmp/llama.cpp/
+adb shell 'ls /data/local/tmp/llama.cpp'
+adb shell
+cd /data/local/tmp/llama.cpp/lib
+export LD_LIBRARY_PATH=/data/local/tmp/llama.cpp/lib:$LD_LIBRARY_PATH
+./llama-server -m ../gemma-3n-E2B-it-UD-Q4_K_XL.gguf --top-p 0.95 --temp 0.7 --frequency-penalty 0 --presence-penalty 0 -n 40960 -s -1 --dynatemp-range 0 --dynatemp-exp 1 --top-k 40 --min-p 0.05 --typical 1 --repeat-last-n 64 --repeat-penalty 1 --mirostat 0 --mirostat-ent 5 --mirostat-lr 0.1  -c 40960 -np 1 -t -1 -ngl 14 --host 0.0.0.0 --verbose
+```
+
+
+# Adreno上运行
+```
+Adreno:
+
+Install OpenCL Headers and Library
+git clone https://github.com/KhronosGroup/OpenCL-Headers &amp;&amp; \
+cd OpenCL-Headers &amp;&amp; \
+cp -rf ./CL/ $ANDROID_NDK/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include
+
+git clone https://github.com/KhronosGroup/OpenCL-ICD-Loader &amp;&amp; \
+cd OpenCL-ICD-Loader &amp;&amp; \
+mkdir build_ndk26 &amp;&amp; cd build_ndk26
+cmake .. -G Ninja -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK/build/cmake/android.toolchain.cmake -DOPENCL_ICD_LOADER_HEADERS_DIR=$ANDROID_NDK/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include -DANDROID_ABI=arm64-v8a -DANDROID_PLATFORM=24 -DANDROID_STL=c++_shared
+cp libOpenCL.so $ANDROID_NDK/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib/aarch64-linux-android
+
+Build llama.cpp:
+cmake .. -G Ninja -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK/build/cmake/android.toolchain.cmake -DANDROID_ABI=arm64-v8a  -DANDROID_PLATFORM=android-28  -DBUILD_SHARED_LIBS=OFF -DGGML_OPENCL=ON  -DLLAMA_CURL=OFF
+ninja -j16
+DESTDIR=../install-opencl/ ninja install
+
+
+cd ../install-opencl/usr/loca/
+adb shell 'mkdir /data/local/tmp/llama.cpp-opencl'
+adb push . /data/local/tmp/llama.cpp-opencl/
+adb push {model}.gguf /data/local/tmp/llama.cpp-opencl/
+adb shell 'ls /data/local/tmp/llama.cpp-opencl'
+adb shell
+cd /data/local/tmp/llama.cpp-opencl/lib
+export LD_LIBRARY_PATH=/data/local/tmp/llama.cpp-opencl/lib:$LD_LIBRARY_PATH
+./llama-server -m ../gemma-3n-E2B-it-UD-Q4_K_XL.gguf --top-p 0.95 --temp 0.7 --frequency-penalty 0 --presence-penalty 0 -n 40960 -s -1 --dynatemp-range 0 --dynatemp-exp 1 --top-k 40 --min-p 0.05 --typical 1 --repeat-last-n 64 --repeat-penalty 1 --mirostat 0 --mirostat-ent 5 --mirostat-lr 0.1  -c 40960 -np 1 -t -1 -ngl 14 --host 0.0.0.0 --verbose
+```
+
+
+# Reference
+- https://github.com/ggml-org/llama.cpp/blob/master/docs/build.md
+- https://github.com/ggml-org/llama.cpp/blob/master/docs/backend/OPENCL.md
+- [google-ai-edge](https://github.com/google-ai-edge)
+
+# issue
+- 用CPU基本与Google官方的gallery性能一致。</description><guid isPermaLink="true">https://Ethan-a2.github.io/post/Android%20K70%20Pro%20llama.cpp%20Gemma-3n.html</guid><pubDate>Sun, 29 Jun 2025 09:16:17 +0000</pubDate></item><item><title>minimind.inference</title><link>https://Ethan-a2.github.io/post/minimind.inference.html</link><description>
 # download
 ```
 git clone https://github.com/jingyaogong/minimind.git
