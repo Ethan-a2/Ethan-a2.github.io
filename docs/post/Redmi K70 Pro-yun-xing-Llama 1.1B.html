@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html data-color-mode="light" data-dark-theme="dark" data-light-theme="light" lang="zh-CN">
+<head>
+    <meta content="text/html; charset=utf-8" http-equiv="content-type" />
+    <meta name="viewport" content="width=device-width,initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <link href='https://mirrors.sustech.edu.cn/cdnjs/ajax/libs/Primer/21.0.7/primer.css' rel='stylesheet' />
+    
+    <link rel="icon" href="https://avatars.githubusercontent.com/u/61342241?v=4&size=64"><script>
+        let theme = localStorage.getItem("meek_theme") || "light";
+        document.documentElement.setAttribute("data-color-mode", theme);
+    </script>
+<meta name="description" content="
+# 前言
+
+随着移动设备硬件性能的飞速发展，将大型语言模型（LLM）部署到端侧设备上运行，实现低延迟、保护用户隐私的AI推理，正成为一个热门方向。">
+<meta property="og:title" content="Redmi K70 Pro运行Llama 1.1B">
+<meta property="og:description" content="
+# 前言
+
+随着移动设备硬件性能的飞速发展，将大型语言模型（LLM）部署到端侧设备上运行，实现低延迟、保护用户隐私的AI推理，正成为一个热门方向。">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://Ethan-a2.github.io/post/Redmi%20K70%20Pro-yun-xing-Llama%201.1B.html">
+<meta property="og:image" content="https://avatars.githubusercontent.com/u/61342241?v=4&size=64">
+<title>Redmi K70 Pro运行Llama 1.1B</title>
+<link href="//unpkg.com/@wooorm/starry-night@2.1.1/style/both.css" rel="stylesheet" />
+
+
+</head>
+<style>
+body{box-sizing: border-box;min-width: 200px;max-width: 900px;margin: 20px auto;padding: 45px;font-size: 16px;font-family: sans-serif;line-height: 1.25;}
+#header{display:flex;padding-bottom:8px;border-bottom: 1px solid var(--borderColor-muted, var(--color-border-muted));margin-bottom: 16px;}
+#footer {margin-top:64px; text-align: center;font-size: small;}
+
+</style>
+
+<style>
+.postTitle{margin: auto 0;font-size:40px;font-weight:bold;}
+.title-right{display:flex;margin:auto 0 0 auto;}
+.title-right .circle{padding: 14px 16px;margin-right:8px;}
+#postBody{border-bottom: 1px solid var(--color-border-default);padding-bottom:36px;}
+#postBody hr{height:2px;}
+#cmButton{height:48px;margin-top:48px;}
+#comments{margin-top:64px;}
+.g-emoji{font-size:24px;}
+@media (max-width: 600px) {
+    body {padding: 8px;}
+    .postTitle{font-size:24px;}
+}
+.copy-feedback {
+    display: none;
+    position: absolute;
+    top: 10px;
+    right: 50px;
+    color: var(--color-fg-on-emphasis);
+    background-color: var(--color-fg-muted);
+    border-radius: 3px;
+    padding: 5px 8px;
+    font-size: 12px;
+}
+</style>
+
+
+
+
+<body>
+    <div id="header">
+<h1 class="postTitle">Redmi K70 Pro运行Llama 1.1B</h1>
+<div class="title-right">
+    <a href="https://Ethan-a2.github.io" id="buttonHome" class="btn btn-invisible circle" title="首页">
+        <svg class="octicon" width="16" height="16">
+            <path id="pathHome" fill-rule="evenodd"></path>
+        </svg>
+    </a>
+    
+    <a href="https://github.com/Ethan-a2/Ethan-a2.github.io/issues/14" target="_blank" class="btn btn-invisible circle" title="Issue">
+        <svg class="octicon" width="16" height="16">
+            <path id="pathIssue" fill-rule="evenodd"></path>
+        </svg>
+    </a>
+    
+
+    <a class="btn btn-invisible circle" onclick="modeSwitch();" title="切换主题">
+        <svg class="octicon" width="16" height="16" >
+            <path id="themeSwitch" fill-rule="evenodd"></path>
+        </svg>
+    </a>
+
+</div>
+</div>
+    <div id="content">
+<div class="markdown-body" id="postBody"><h1>前言</h1>
+<p>随着移动设备硬件性能的飞速发展，将大型语言模型（LLM）部署到端侧设备上运行，实现低延迟、保护用户隐私的AI推理，正成为一个热门方向。本文记录了在搭载高通骁龙8 Gen3处理器的Redmi K70 Pro上，尝试运行其提供的Llama 1.1B MobileQuant模型的过程、遇到的问题及初步分析。</p>
+<h1>环境准备</h1>
+<ul>
+<li><strong>设备型号：</strong> Redmi K70 Pro</li>
+<li><strong>处理器：</strong> 高通骁龙8 Gen3 (Snapdragon 8 Gen3)</li>
+<li><strong>操作系统：</strong> Android（通过ADB连接和操作）</li>
+<li><strong>工具：</strong> ADB (Android Debug Bridge)</li>
+<li><strong>模型与推理程序来源：</strong> Hugging Face (fwtan/llm_8gen3_demo, fwtan/llama-1.1b-mobilequant-w4a8-s1024-e60-sym-8gen3)</li>
+</ul>
+<h1>模型与程序下载</h1>
+<p>首先，我们需要从Hugging Face下载MobileQuant为骁龙8 Gen3准备的推理Demo程序和Llama 1.1B的量化模型。</p>
+<div class="highlight highlight-source-shell"><pre class="notranslate"><span class="pl-c"><span class="pl-c">#</span> 下载推理程序 demo</span>
+huggingface-cli download fwtan/llm_8gen3_demo --local-dir <span class="pl-c1">.</span>
+
+<span class="pl-c"><span class="pl-c">#</span> 下载 Llama 1.1B 量化模型</span>
+<span class="pl-c"><span class="pl-c">#</span> llama-1.1b-mobilequant-w4a8-s1024-e60-sym-8gen3</span>
+<span class="pl-c"><span class="pl-c">#</span> w4a8: 4-bit 权重，8-bit 激活</span>
+<span class="pl-c"><span class="pl-c">#</span> s1024: sequence length 1024</span>
+<span class="pl-c"><span class="pl-c">#</span> e60: 可能是 epoch 60</span>
+<span class="pl-c"><span class="pl-c">#</span> sym: symmetric quantization</span>
+huggingface-cli download fwtan/llama-1.1b-mobilequant-w4a8-s1024-e60-sym-8gen3 --local-dir <span class="pl-c1">.</span></pre></div>
+<p>下载完成后，您会在当前目录下看到两个文件/文件夹：<code class="notranslate">llm_8gen3_demo</code> (一个可执行文件) 和 <code class="notranslate">llama-1.1b-mobilequant-w4a8-s1024-e60-sym-8gen3</code> (模型文件)。</p>
+<h1>文件部署到设备</h1>
+<p>使用ADB将下载的文件推送到Redmi K70 Pro上。为了方便，我们统一存放在<code class="notranslate">/data/local/tmp/</code>目录下。</p>
+<div class="highlight highlight-source-shell"><pre class="notranslate">adb push llm_8gen3_demo /data/local/tmp/
+
+<span class="pl-c"><span class="pl-c">#</span> 将模型文件推送到设备，放在demo程序同级目录下</span>
+adb push llama-1.1b-mobilequant-w4a8-s1024-e60-sym-8gen3 /data/local/tmp/llm_8gen3_demo</pre></div>
+<h1>手动在设备上运行</h1>
+<p>通过ADB shell进入设备终端，执行程序。</p>
+<div class="highlight highlight-source-shell"><pre class="notranslate"><span class="pl-c"><span class="pl-c">#</span> 进入部署目录</span>
+adb shell
+<span class="pl-c1">cd</span> /data/local/tmp/llm_8gen3_demo
+
+<span class="pl-c"><span class="pl-c">#</span> 设置库路径，使得可执行文件能够找到其依赖的共享库和DSP库</span>
+<span class="pl-k">export</span> LD_LIBRARY_PATH=<span class="pl-smi">$PWD</span>
+<span class="pl-k">export</span> ADSP_LIBRARY_PATH=<span class="pl-smi">$PWD</span>
+
+<span class="pl-c"><span class="pl-c">#</span> 赋予 simple_app 可执行权限</span>
+<span class="pl-c"><span class="pl-c">#</span> 注意：可执行文件的名字是 simple_app</span>
+chmod +x simple_app
+
+<span class="pl-c"><span class="pl-c">#</span> 运行推理程序，并指定模型文件目录</span>
+./simple_app llama-1.1b-mobilequant-w4a8-s1024-e60-sym-8gen3</pre></div>
+<h1>实测结果</h1>
+<p>程序成功启动，并提示输入。我们尝试输入一个简单的指令："tell me a joke."</p>
+<pre class="notranslate"><code class="notranslate">Hello, how can I help you today?
+&gt;&gt;&gt; tell me a joke.
+ink is a liquid that is used to write and draw. It is made from the same ingredients as ink, but it is thicker and more viscous than traditional ink. The ink is made by mixing a dye with a pigment, which is then mixed with a binder and a solvent. The binder is a mixture of water and alcohol, which helps to bind the pigment to the paper. The solvent is a chemical that helps to remove any excess pigment from the paper. The ink is then coated with a layer of wax to help it stick to the paper. The result is a water-resistant ink that is easy to write and draw on.&lt;/s&gt;(19.784995 tok/s)
+&gt;&gt;&gt; 
+</code></pre>
+<p><a target="_blank" rel="noopener noreferrer" href="https://github.com/user-attachments/assets/ee3cfe3c-0c34-4cfd-ac0b-e996d79b1173"><img width="1207" height="140" alt="Image" src="https://github.com/user-attachments/assets/ee3cfe3c-0c34-4cfd-ac0b-e996d79b1173" style="max-width: 100%; height: auto; max-height: 140px;"></a></p>
+<p><strong>观察结果：答非所问</strong></p>
+<p>从输出可见，模型并没有给出与“笑话”相关的内容，而是输出了一段关于“墨水”的描述。这明显是<strong>答非所问</strong>的现象。</p>
+<h1>结果分析与问题探讨</h1>
+<p>尽管我们成功在Redmi K70 Pro上运行了MobileQuant以及Llama 1.1B模型，但推理的质量未能达到预期。导致“答非所问”的原因可能由以下几点综合影响：</p>
+<ol>
+<li>
+<p><strong>模型规模与量化程度：</strong></p>
+<ul>
+<li><strong>Llama 1.1B 是一个非常小的模型。</strong> 即使是未量化的原始Llama 1.1B，其生成能力也相对有限，很难处理复杂的指令或生成高质量的创意内容（如笑话）。它更多是作为大规模模型的基座或用于极其简单的任务。</li>
+<li><strong>W4A8 (4-bit 权重，8-bit 激活) 是非常激进的量化方案。</strong> 深度量化虽然能大幅减小模型体积、提升运行速度，但也会带来信息损失和精度下降，尤其对小模型的影响更为显著。这可能导致模型语义理解能力和生成连贯性严重受损，产生“幻觉”或完全不相关的输出。模型可能只是在拼凑词语，而无法理解其深层含义或指令意图。</li>
+</ul>
+</li>
+<li>
+<p><strong>模型是否为指令微调版（Instruction-tuned）：</strong> 许多公开的Llama模型是基础模型，需要经过指令微调（Instruction-tuning）才能更好地理解并遵循用户指令。如果这个Llama 1.1B模型是未经指令微调的基座模型，那么即使是高质量的输入，也可能无法得到预期的交互式回答。它可能只是在按其预训练数据中的概率生成文本。</p>
+</li>
+<li>
+<p><strong>Demo应用程序的局限性：</strong> 示例程序<code class="notranslate">simple_app</code>可能只是一个非常基础的推理封装，它可能没有包含任何形式的Prompt Engineering（例如，系统提示词、多轮对话管理、CoT/CoH等策略）。它可能只是简单地将用户输入拼接后进行推理，这对于需要特定格式或上下文才能良好工作的模型来说是不够的。</p>
+</li>
+<li>
+<p><strong>模型与运行时的兼容性或 bug：</strong> 虽然可能性相对较低，但也不能完全排除。在特定硬件或运行时版本上，模型加载或推理计算过程中可能存在导致数据损坏或行为异常的bug。</p>
+</li>
+</ol>
+<h1>结论与展望</h1>
+<p>本次测试成功验证了在Redmi K70 Pro这样的高端移动设备上运行MobileQuant推理框架的可行性。设备能够加载并执行模型，并给出了接近20 tok/s的推理速度，这对于端侧LLM来说是一个不错的开始。</p>
+<p>然而，Llama 1.1B W4A8模型的实际推理质量表现不佳，无法用于实际的问答场景。这提示我们：</p>
+<ul>
+<li><strong>模型质量至关重要：</strong> 即使运行速度快，如果模型本身的质量（包括其原始能力和量化后的精度）不足，也无法提供有用的服务。</li>
+<li><strong>端侧微调与更优量化：</strong> 未来尝试部署到端侧的模型，可能需要选择更大、经过更充分指令微调的模型，并结合更先进的非对称量化或混合精度量化方案，以在性能和精度之间取得更好的平衡。</li>
+<li><strong>Prompt工程：</strong> 即使是端侧模型，也需要合适的Prompt Engineering来引导其行为，使其更好地理解用户意图。</li>
+</ul>
+<p>未来可以尝试该框架支持的更大规模模型或不同量化策略的模型，以探索在移动设备上实现实用级LLM推理的可能性。</p>
+<h1>参考资料</h1>
+<ul>
+<li><a href="https://github.com/saic-fi/MobileQuant/tree/main/capp">MobileQuant/capp at main · saic-fi/MobileQuant</a></li>
+</ul></div>
+<div style="font-size:small;margin-top:8px;float:right;"></div>
+
+<button class="btn btn-block" type="button" onclick="openComments()" id="cmButton">评论</button>
+<div class="comments" id="comments"></div>
+
+</div>
+    <div id="footer"><div id="footer1">Copyright © <span id="copyrightYear"></span> <a href="https://Ethan-a2.github.io">Brue Leo's Blog</a></div>
+<div id="footer2">
+    <span id="runday"></span><span>Powered by <a href="https://meekdai.com/Gmeek.html" target="_blank">Gmeek</a></span>
+</div>
+
+<script>
+var now=new Date();
+document.getElementById("copyrightYear").innerHTML=now.getFullYear();
+
+if(""!=""){
+    var startSite=new Date("");
+    var diff=now.getTime()-startSite.getTime();
+    var diffDay=Math.floor(diff/(1000*60*60*24));
+    document.getElementById("runday").innerHTML="网站运行"+diffDay+"天"+" • ";
+}
+</script></div>
+</body>
+<script>
+var IconList={'sun': 'M8 10.5a2.5 2.5 0 100-5 2.5 2.5 0 000 5zM8 12a4 4 0 100-8 4 4 0 000 8zM8 0a.75.75 0 01.75.75v1.5a.75.75 0 01-1.5 0V.75A.75.75 0 018 0zm0 13a.75.75 0 01.75.75v1.5a.75.75 0 01-1.5 0v-1.5A.75.75 0 018 13zM2.343 2.343a.75.75 0 011.061 0l1.06 1.061a.75.75 0 01-1.06 1.06l-1.06-1.06a.75.75 0 010-1.06zm9.193 9.193a.75.75 0 011.06 0l1.061 1.06a.75.75 0 01-1.06 1.061l-1.061-1.06a.75.75 0 010-1.061zM16 8a.75.75 0 01-.75.75h-1.5a.75.75 0 010-1.5h1.5A.75.75 0 0116 8zM3 8a.75.75 0 01-.75.75H.75a.75.75 0 010-1.5h1.5A.75.75 0 013 8zm10.657-5.657a.75.75 0 010 1.061l-1.061 1.06a.75.75 0 11-1.06-1.06l1.06-1.06a.75.75 0 011.06 0zm-9.193 9.193a.75.75 0 010 1.06l-1.06 1.061a.75.75 0 11-1.061-1.06l1.06-1.061a.75.75 0 011.061 0z', 'moon': 'M9.598 1.591a.75.75 0 01.785-.175 7 7 0 11-8.967 8.967.75.75 0 01.961-.96 5.5 5.5 0 007.046-7.046.75.75 0 01.175-.786zm1.616 1.945a7 7 0 01-7.678 7.678 5.5 5.5 0 107.678-7.678z', 'sync': 'M1.705 8.005a.75.75 0 0 1 .834.656 5.5 5.5 0 0 0 9.592 2.97l-1.204-1.204a.25.25 0 0 1 .177-.427h3.646a.25.25 0 0 1 .25.25v3.646a.25.25 0 0 1-.427.177l-1.38-1.38A7.002 7.002 0 0 1 1.05 8.84a.75.75 0 0 1 .656-.834ZM8 2.5a5.487 5.487 0 0 0-4.131 1.869l1.204 1.204A.25.25 0 0 1 4.896 6H1.25A.25.25 0 0 1 1 5.75V2.104a.25.25 0 0 1 .427-.177l1.38 1.38A7.002 7.002 0 0 1 14.95 7.16a.75.75 0 0 1-1.49.178A5.5 5.5 0 0 0 8 2.5Z', 'home': 'M6.906.664a1.749 1.749 0 0 1 2.187 0l5.25 4.2c.415.332.657.835.657 1.367v7.019A1.75 1.75 0 0 1 13.25 15h-3.5a.75.75 0 0 1-.75-.75V9H7v5.25a.75.75 0 0 1-.75.75h-3.5A1.75 1.75 0 0 1 1 13.25V6.23c0-.531.242-1.034.657-1.366l5.25-4.2Zm1.25 1.171a.25.25 0 0 0-.312 0l-5.25 4.2a.25.25 0 0 0-.094.196v7.019c0 .138.112.25.25.25H5.5V8.25a.75.75 0 0 1 .75-.75h3.5a.75.75 0 0 1 .75.75v5.25h2.75a.25.25 0 0 0 .25-.25V6.23a.25.25 0 0 0-.094-.195Z', 'github': 'M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z', 'copy': 'M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 0 1 0 1.5h-1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-1.5a.75.75 0 0 1 1.5 0v1.5A1.75 1.75 0 0 1 9.25 16h-7.5A1.75 1.75 0 0 1 0 14.25Z M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0 1 14.25 11h-7.5A1.75 1.75 0 0 1 5 9.25Zm1.75-.25a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z', 'check': 'M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z'};
+var utterancesLoad=0;
+
+let themeSettings={
+    "dark": ["dark","moon","#00f0ff","dark-blue"],
+    "light": ["light","sun","#ff5000","github-light"],
+    "auto": ["auto","sync","","preferred-color-scheme"]
+};
+function changeTheme(mode, icon, color, utheme){
+    document.documentElement.setAttribute("data-color-mode",mode);
+    document.getElementById("themeSwitch").setAttribute("d",value=IconList[icon]);
+    document.getElementById("themeSwitch").parentNode.style.color=color;
+    if(utterancesLoad==1){utterancesTheme(utheme);}
+}
+function modeSwitch(){
+    let currentMode=document.documentElement.getAttribute('data-color-mode');
+    let newMode = currentMode === "light" ? "dark" : currentMode === "dark" ? "auto" : "light";
+    localStorage.setItem("meek_theme", newMode);
+    if(themeSettings[newMode]){
+        changeTheme(...themeSettings[newMode]);
+    }
+}
+function utterancesTheme(theme){
+    const message={type:'set-theme',theme: theme};
+    const iframe=document.getElementsByClassName('utterances-frame')[0];
+    iframe.contentWindow.postMessage(message,'https://utteranc.es');
+}
+if(themeSettings[theme]){changeTheme(...themeSettings[theme]);}
+console.log("\n %c Gmeek last https://github.com/Meekdai/Gmeek \n","padding:5px 0;background:#02d81d;color:#fff");
+</script>
+
+<script>
+document.getElementById("pathHome").setAttribute("d",IconList["home"]);
+document.getElementById("pathIssue").setAttribute("d",IconList["github"]);
+
+
+
+function openComments(){
+    cm=document.getElementById("comments");
+    cmButton=document.getElementById("cmButton");
+    cmButton.innerHTML="loading";
+    span=document.createElement("span");
+    span.setAttribute("class","AnimatedEllipsis");
+    cmButton.appendChild(span);
+
+    script=document.createElement("script");
+    script.setAttribute("src","https://utteranc.es/client.js");
+    script.setAttribute("repo","Ethan-a2/Ethan-a2.github.io");
+    script.setAttribute("issue-term","title");
+    
+    if(localStorage.getItem("meek_theme")=="dark"){script.setAttribute("theme","dark-blue");}
+    else if(localStorage.getItem("meek_theme")=="light") {script.setAttribute("theme","github-light");}
+    else{script.setAttribute("theme","preferred-color-scheme");}
+    
+    script.setAttribute("crossorigin","anonymous");
+    script.setAttribute("async","");
+    cm.appendChild(script);
+
+    int=self.setInterval("iFrameLoading()",200);
+}
+
+function iFrameLoading(){
+    var utterances=document.getElementsByClassName('utterances');
+    if(utterances.length==1){
+        if(utterances[0].style.height!=""){
+            utterancesLoad=1;
+            int=window.clearInterval(int);
+            document.getElementById("cmButton").style.display="none";
+            console.log("utterances Load OK");
+        }
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    const createClipboardHTML = (codeContent, additionalClasses = '') => `
+        <pre class="notranslate"><code class="notranslate">${codeContent}</code></pre>
+        <div class="clipboard-container position-absolute right-0 top-0 ${additionalClasses}">
+            <clipboard-copy class="ClipboardButton btn m-2 p-0" role="button" style="display: inherit;">
+                <svg height="16" width="16" class="octicon octicon-copy m-2"><path d="${IconList["copy"]}"></path></svg>
+                <svg height="16" width="16" class="octicon octicon-check color-fg-success m-2 d-none"><path d="${IconList["check"]}"></path></svg>
+            </clipboard-copy>
+            <div class="copy-feedback">Copied!</div>
+        </div>
+    `;
+
+    const handleCodeElements = (selector = '') => {
+        document.querySelectorAll(selector).forEach(codeElement => {
+            const codeContent = codeElement.innerHTML;
+            const newStructure = document.createElement('div');
+            newStructure.className = 'snippet-clipboard-content position-relative overflow-auto';
+            newStructure.innerHTML = createClipboardHTML(codeContent);
+
+            const parentElement = codeElement.parentElement;
+            if (selector.includes('highlight')) {
+                parentElement.insertBefore(newStructure, codeElement.nextSibling);
+                parentElement.removeChild(codeElement);
+            } else {
+                parentElement.parentElement.replaceChild(newStructure, parentElement);
+            }
+        });
+    };
+
+    handleCodeElements('pre.notranslate > code.notranslate');
+    handleCodeElements('div.highlight > pre.notranslate');
+
+    let currentFeedback = null;
+    document.querySelectorAll('clipboard-copy').forEach(copyButton => {
+        copyButton.addEventListener('click', () => {
+            const codeContent = copyButton.closest('.snippet-clipboard-content').innerText;
+            const tempTextArea = document.createElement('textarea');
+            tempTextArea.value = codeContent;
+            document.body.appendChild(tempTextArea);
+            tempTextArea.select();
+            document.execCommand('copy');
+            document.body.removeChild(tempTextArea);
+
+            const copyIcon = copyButton.querySelector('.octicon-copy');
+            const checkIcon = copyButton.querySelector('.octicon-check');
+            const copyFeedback = copyButton.nextElementSibling;
+
+            if (currentFeedback && currentFeedback !== copyFeedback) {currentFeedback.style.display = 'none';}
+            currentFeedback = copyFeedback;
+
+            copyIcon.classList.add('d-none');
+            checkIcon.classList.remove('d-none');
+            copyFeedback.style.display = 'block';
+            copyButton.style.borderColor = 'var(--color-success-fg)';
+
+            setTimeout(() => {
+                copyIcon.classList.remove('d-none');
+                checkIcon.classList.add('d-none');
+                copyFeedback.style.display = 'none';
+                copyButton.style.borderColor = '';
+            }, 2000);
+        });
+    });
+});
+
+</script>
+
+
+</html>
