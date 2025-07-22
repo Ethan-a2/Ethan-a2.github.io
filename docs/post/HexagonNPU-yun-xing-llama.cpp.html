@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html data-color-mode="light" data-dark-theme="dark" data-light-theme="light" lang="zh-CN">
+<head>
+    <meta content="text/html; charset=utf-8" http-equiv="content-type" />
+    <meta name="viewport" content="width=device-width,initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <link href='https://mirrors.sustech.edu.cn/cdnjs/ajax/libs/Primer/21.0.7/primer.css' rel='stylesheet' />
+    
+    <link rel="icon" href="https://avatars.githubusercontent.com/u/61342241?v=4&size=64"><script>
+        let theme = localStorage.getItem("meek_theme") || "light";
+        document.documentElement.setAttribute("data-color-mode", theme);
+    </script>
+<meta name="description" content="本文将详细介y绍如何在 Android 设备上，利用 `llama.cpp` 框架，结合高通神经网络处理单元 (QNN) 的硬件加速能力，部署并运行 Qwen 1.5 模型。">
+<meta property="og:title" content="HexagonNPU运行llama.cpp">
+<meta property="og:description" content="本文将详细介y绍如何在 Android 设备上，利用 `llama.cpp` 框架，结合高通神经网络处理单元 (QNN) 的硬件加速能力，部署并运行 Qwen 1.5 模型。">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://Ethan-a2.github.io/post/HexagonNPU-yun-xing-llama.cpp.html">
+<meta property="og:image" content="https://avatars.githubusercontent.com/u/61342241?v=4&size=64">
+<title>HexagonNPU运行llama.cpp</title>
+<link href="//unpkg.com/@wooorm/starry-night@2.1.1/style/both.css" rel="stylesheet" />
+
+
+</head>
+<style>
+body{box-sizing: border-box;min-width: 200px;max-width: 900px;margin: 20px auto;padding: 45px;font-size: 16px;font-family: sans-serif;line-height: 1.25;}
+#header{display:flex;padding-bottom:8px;border-bottom: 1px solid var(--borderColor-muted, var(--color-border-muted));margin-bottom: 16px;}
+#footer {margin-top:64px; text-align: center;font-size: small;}
+
+</style>
+
+<style>
+.postTitle{margin: auto 0;font-size:40px;font-weight:bold;}
+.title-right{display:flex;margin:auto 0 0 auto;}
+.title-right .circle{padding: 14px 16px;margin-right:8px;}
+#postBody{border-bottom: 1px solid var(--color-border-default);padding-bottom:36px;}
+#postBody hr{height:2px;}
+#cmButton{height:48px;margin-top:48px;}
+#comments{margin-top:64px;}
+.g-emoji{font-size:24px;}
+@media (max-width: 600px) {
+    body {padding: 8px;}
+    .postTitle{font-size:24px;}
+}
+.copy-feedback {
+    display: none;
+    position: absolute;
+    top: 10px;
+    right: 50px;
+    color: var(--color-fg-on-emphasis);
+    background-color: var(--color-fg-muted);
+    border-radius: 3px;
+    padding: 5px 8px;
+    font-size: 12px;
+}
+</style>
+
+
+
+
+<body>
+    <div id="header">
+<h1 class="postTitle">HexagonNPU运行llama.cpp</h1>
+<div class="title-right">
+    <a href="https://Ethan-a2.github.io" id="buttonHome" class="btn btn-invisible circle" title="首页">
+        <svg class="octicon" width="16" height="16">
+            <path id="pathHome" fill-rule="evenodd"></path>
+        </svg>
+    </a>
+    
+    <a href="https://github.com/Ethan-a2/Ethan-a2.github.io/issues/15" target="_blank" class="btn btn-invisible circle" title="Issue">
+        <svg class="octicon" width="16" height="16">
+            <path id="pathIssue" fill-rule="evenodd"></path>
+        </svg>
+    </a>
+    
+
+    <a class="btn btn-invisible circle" onclick="modeSwitch();" title="切换主题">
+        <svg class="octicon" width="16" height="16" >
+            <path id="themeSwitch" fill-rule="evenodd"></path>
+        </svg>
+    </a>
+
+</div>
+</div>
+    <div id="content">
+<div class="markdown-body" id="postBody"><p>本文将详细介y绍如何在 Android 设备上，利用 <code class="notranslate">llama.cpp</code> 框架，结合高通神经网络处理单元 (QNN) 的硬件加速能力，部署并运行 Qwen 1.5 模型。</p>
+<p>本教程将涵盖模型转换、交叉编译 <code class="notranslate">llama.cpp</code>、文件传输到设备以及最终运行推理的完整流程。</p>
+<h1>前置条件</h1>
+<p>在开始之前，请确保你已经准备好以下环境和工具：</p>
+<ol>
+<li><strong>操作系统</strong>: Linux (推荐 Ubuntu) 或 macOS。Windows 用户可以使用 WSL2。</li>
+<li><strong>Git</strong>: 用于克隆 <code class="notranslate">llama.cpp</code> 仓库。
+<div class="highlight highlight-source-shell"><pre class="notranslate">sudo apt update <span class="pl-k">&amp;&amp;</span> sudo apt install git <span class="pl-c"><span class="pl-c">#</span> Linux</span></pre></div>
+</li>
+<li><strong>Python 3</strong>: 及其包管理工具 <code class="notranslate">pip</code>。
+<div class="highlight highlight-source-shell"><pre class="notranslate">sudo apt install python3 python3-pip <span class="pl-c"><span class="pl-c">#</span> Linux</span>
+pip install transformers sentencepiece accelerate <span class="pl-c"><span class="pl-c">#</span> 用于模型下载和转换</span></pre></div>
+</li>
+<li><strong>CMake</strong>: 版本 3.15 或更高。
+<div class="highlight highlight-source-shell"><pre class="notranslate">sudo apt install cmake <span class="pl-c"><span class="pl-c">#</span> Linux</span></pre></div>
+</li>
+<li><strong>Android NDK</strong>: 用于编译 Android 代码。建议下载最新稳定版。
+<ul>
+<li>下载地址: <a href="https://developer.android.com/ndk/downloads" rel="nofollow">Android NDK download</a></li>
+<li>解压后，请设置环境变量 <code class="notranslate">ANDROID_NDK_ROOT</code> 指向 NDK 的根目录。例如：
+<div class="highlight highlight-source-shell"><pre class="notranslate"><span class="pl-k">export</span> ANDROID_NDK_ROOT=/path/to/android-ndk-rXX (替换为你的 NDK 路径，例如 <span class="pl-k">~</span>/Android/android-ndk-r26c)
+<span class="pl-c"><span class="pl-c">#</span> 建议将其添加到 ~/.bashrc 或 ~/.zshrc 以便永久生效</span></pre></div>
+</li>
+</ul>
+</li>
+<li><strong>Qualcomm QNN SDK</strong>: 如果你想启用 QNN 加速，这是必需的。你需要从高通开发者网站或通过合作渠道获取。
+<ul>
+<li>下载 QNN SDK 并解压。</li>
+<li>设置环境变量 <code class="notranslate">QNN_SDK_ROOT</code> 指向 QNN SDK 的根目录。例如：
+<div class="highlight highlight-source-shell"><pre class="notranslate"><span class="pl-k">export</span> QNN_SDK_ROOT=/path/to/qnn_sdk (替换为你的 QNN SDK 路径)
+<span class="pl-c"><span class="pl-c">#</span> 建议将其添加到 ~/.bashrc 或 ~/.zshrc 以便永久生效</span></pre></div>
+</li>
+<li><strong>重要</strong>: QNN 加速仅在支持 QNN 的高通芯片设备上有效。例如，骁龙 800 系列的部分 SoC。</li>
+</ul>
+</li>
+<li><strong>ADB (Android Debug Bridge)</strong>: 用于与 Android 设备通信。通常随 Android SDK Platform-Tools 一起安装。
+<div class="highlight highlight-source-shell"><pre class="notranslate">sudo apt install android-tools-adb <span class="pl-c"><span class="pl-c">#</span> Linux</span></pre></div>
+</li>
+<li><strong>一台 Android 设备</strong>: 已开启开发者模式和 USB 调试。
+<ul>
+<li>验证设备连接：<code class="notranslate">adb devices</code></li>
+</ul>
+</li>
+</ol>
+<h1>步骤一：模型导出为 GGUF 格式</h1>
+<p><code class="notranslate">llama.cpp</code> 使用其特有的 GGUF 格式来存储模型，这种格式支持内存映射，能高效加载模型。我们将下载原始的 Hugging Face Qwen 1.5 模型，然后将其转换为 GGUF 格式。</p>
+<ol>
+<li>
+<p><strong>克隆 <code class="notranslate">llama.cpp</code> 仓库</strong>:</p>
+<div class="highlight highlight-source-shell"><pre class="notranslate">git clone https://github.com/chraac/llama.cpp.git
+<span class="pl-c1">cd</span> llama.cpp</pre></div>
+</li>
+<li>
+<p><strong>下载 Qwen 1.5 模型</strong>:<br>
+我们将模型下载到 <code class="notranslate">llama.cpp</code> 仓库根目录下的 <code class="notranslate">models/Qwen1.5-0.5B</code> 文件夹中。</p>
+<div class="highlight highlight-source-shell"><pre class="notranslate">mkdir -p models/Qwen1.5-0.5B
+huggingface-cli download Qwen/Qwen1.5-0.5B --local-dir models/Qwen1.5-0.5B</pre></div>
+</li>
+<li>
+<p><strong>转换为 GGUF 格式</strong>:<br>
+<code class="notranslate">llama.cpp</code> 仓库中提供了一个 <code class="notranslate">convert.py</code> 脚本用于模型转换。</p>
+<ul>
+<li><strong>注意</strong>: 原始文件中使用的是 <code class="notranslate">convert_hf_to_gguf.py</code>，这可能是一个自定义脚本或旧版本的名称。<code class="notranslate">llama.cpp</code> 官方的转换脚本通常是 <code class="notranslate">convert.py</code>。此处我们统一使用 <code class="notranslate">convert.py</code>。</li>
+</ul>
+<div class="highlight highlight-source-shell"><pre class="notranslate">python3 convert.py models/Qwen1.5-0.5B/ --outfile qwen1.5-0.5B_fp32.gguf --outtype f32</pre></div>
+<ul>
+<li><code class="notranslate">--outfile qwen1.5-0.5B_fp32.gguf</code>: 指定输出的 GGUF 文件名。</li>
+<li><code class="notranslate">--outtype f32</code>: 指定输出模型的精度为 FP32。你也可以尝试其他量化类型，如 <code class="notranslate">q4_0</code>、<code class="notranslate">q8_0</code> 等，以减小模型大小和提高推理速度（需要后续额外的量化步骤）。</li>
+</ul>
+</li>
+<li>
+<p><strong>验证生成文件</strong>:<br>
+转换完成后，确认在 <code class="notranslate">llama.cpp</code> 根目录或你指定的输出路径下生成了 <code class="notranslate">qwen1.5-0.5B_fp32.gguf</code> 文件。</p>
+<div class="highlight highlight-source-shell"><pre class="notranslate">ls -lh qwen1.5-0.5B_fp32.gguf</pre></div>
+<p>它的大小应该与原始模型文件大小相似或略有不同。</p>
+</li>
+</ol>
+<h1>步骤二：为 Android 交叉编译 llama.cpp (启用 QNN 加速)</h1>
+<p>我们将编译 <code class="notranslate">llama.cpp</code> 为 Android 可执行文件，并启用 QNN 支持。</p>
+<ol>
+<li>
+<p><strong>修改 CMakeLists.txt (可选，根据llama.cpp版本)</strong>：<br>
+在某些 <code class="notranslate">llama.cpp</code> 版本中，<code class="notranslate">LLAMA_CURL</code> 编译选项可能默认开启。如果你的 <code class="notranslate">llama.cpp</code> 版本中存在此选项，请将其改为 <code class="notranslate">OFF</code>，因为在 Android 环境下使用 <code class="notranslate">curl</code> 可能会引入额外的复杂性，且我们不需要从 URL 下载模型。<br>
+在 <code class="notranslate">llama.cpp/CMakeLists.txt</code> 中找到并修改：</p>
+<div class="highlight highlight-source-cmake"><pre class="notranslate"><span class="pl-c1">option</span>(<span class="pl-s">LLAMA_CURL</span>       <span class="pl-s">"llama: use libcurl to download model from an URL"</span> <span class="pl-c1">OFF</span>)</pre></div>
+<ul>
+<li><strong>注意</strong>: 较新版本的 <code class="notranslate">llama.cpp</code> 可能没有这个选项，或者默认就是 <code class="notranslate">OFF</code>。请根据你的实际代码库进行检查。</li>
+</ul>
+</li>
+<li>
+<p><strong>创建构建目录并配置 CMake</strong>:<br>
+在 <code class="notranslate">llama.cpp</code> 根目录下执行：</p>
+<div class="highlight highlight-source-shell"><pre class="notranslate">mkdir build-android <span class="pl-k">&amp;&amp;</span> <span class="pl-c1">cd</span> build-android
+cmake -H.. -B. \
+    -DBUILD_SHARED_LIBS=off \
+    -DGGML_QNN_ENABLE_CPU_BACKEND=on \
+    -DGGML_OPENMP=off \
+    -DANDROID_ABI=<span class="pl-s"><span class="pl-pds">"</span>arm64-v8a<span class="pl-pds">"</span></span> \
+    -DANDROID_PLATFORM=android-31 \
+    -DANDROID_NDK=<span class="pl-smi">$ANDROID_NDK_ROOT</span> \
+    -DCMAKE_TOOLCHAIN_FILE=<span class="pl-smi">$ANDROID_NDK_ROOT</span>/build/cmake/android.toolchain.cmake \
+    -DGGML_QNN=on \
+    -DGGML_QNN_SDK_PATH=<span class="pl-s"><span class="pl-pds">"</span><span class="pl-smi">$QNN_SDK_ROOT</span><span class="pl-pds">"</span></span> \
+    -DCMAKE_BUILD_TYPE=Release</pre></div>
+<ul>
+<li><code class="notranslate">-H.. -B.</code>: 指定源码目录为父目录，构建目录为当前目录。</li>
+<li><code class="notranslate">-DBUILD_SHARED_LIBS=off</code>: 编译为静态库，方便部署，避免依赖动态库查找问题。</li>
+<li><code class="notranslate">-DGGML_QNN_ENABLE_CPU_BACKEND=on</code>: 启用 QNN 时，如果 QNN 后端不可用或出错，允许回退到 CPU 运行。</li>
+<li><code class="notranslate">-DGGML_OPENMP=off</code>: 在 Android NDK 编译某些 OpenMP 特性时可能出现兼容性问题，此处关闭。</li>
+<li><code class="notranslate">-DANDROID_ABI="arm64-v8a"</code>: 指定目标 ABI 为 ARMv8-A 架构，这是目前主流 Android 设备的架构。</li>
+<li><code class="notranslate">-DANDROID_PLATFORM=android-31</code>: 指定 Android API 级别，这里是 Android 12 (API 31)。请根据你的设备和 NDK 版本适当调整。</li>
+<li><code class="notranslate">-DANDROID_NDK=$ANDROID_NDK_ROOT</code>: 指向 Android NDK 的根目录。</li>
+<li><code class="notranslate">-DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_ROOT/build/cmake/android.toolchain.cmake</code>: 指定 Android NDK 的交叉编译工具链文件。</li>
+<li><code class="notranslate">-DGGML_QNN=on</code>: 启用 QNN 后端支持。</li>
+<li><code class="notranslate">-DGGML_QNN_SDK_PATH="$QNN_SDK_ROOT"</code>: 指向 QNN SDK 的根目录。</li>
+<li><code class="notranslate">-DCMAKE_BUILD_TYPE=Release</code>: 构建 Release 版本，优化性能。</li>
+</ul>
+</li>
+<li>
+<p><strong>编译 <code class="notranslate">llama.cpp</code></strong>:<br>
+配置成功后，执行编译命令：</p>
+<div class="highlight highlight-source-shell"><pre class="notranslate">cmake --build <span class="pl-c1">.</span> --config Release -- -j<span class="pl-s"><span class="pl-pds">$(</span>nproc<span class="pl-pds">)</span></span></pre></div>
+<ul>
+<li><code class="notranslate">-j$(nproc)</code>: 使用所有可用的 CPU 核心进行并行编译，加速过程。</li>
+</ul>
+</li>
+<li>
+<p><strong>安装编译好的文件</strong>:<br>
+为了方便后续 <code class="notranslate">adb push</code>，我们将编译好的可执行文件和库安装到一个临时目录。</p>
+<div class="highlight highlight-source-shell"><pre class="notranslate"><span class="pl-c"><span class="pl-c">#</span> (确保当前位于 build-android 目录下)</span>
+DESTDIR=../install-qnn/ make install</pre></div>
+<ul>
+<li><code class="notranslate">DESTDIR=../install-qnn/</code>: 指定安装目标目录为 <code class="notranslate">llama.cpp</code> 根目录下的 <code class="notranslate">install-qnn</code> 文件夹。</li>
+<li><code class="notranslate">make install</code>: 执行安装目标。这会将 <code class="notranslate">llama.cpp</code> 的可执行文件（如 <code class="notranslate">llama-cli</code> 或 <code class="notranslate">main</code>）复制到 <code class="notranslate">../install-qnn/usr/local/bin/</code>，将相关库复制到 <code class="notranslate">../install-qnn/usr/local/lib/</code>。</li>
+</ul>
+</li>
+<li>
+<p><strong>验证安装文件</strong>:<br>
+回到 <code class="notranslate">llama.cpp</code> 根目录，检查 <code class="notranslate">install-qnn</code> 文件夹的内容。</p>
+<div class="highlight highlight-source-shell"><pre class="notranslate"><span class="pl-c1">cd</span> ../ <span class="pl-k">&amp;&amp;</span> ls -RF install-qnn/
+<span class="pl-c"><span class="pl-c">#</span> 你应该能看到类似 install-qnn/usr/local/bin/llama-cli (或 main) 等文件</span></pre></div>
+</li>
+</ol>
+<h1>步骤三：将模型和可执行文件推送到 Android 设备</h1>
+<p>现在，我们将编译好的可执行文件、QNN 运行时库（如果静态链接不完全）和 GGUF 模型文件传输到 Android 设备。</p>
+<ol>
+<li>
+<p><strong>确认设备连接</strong>:</p>
+<div class="highlight highlight-source-shell"><pre class="notranslate">adb devices</pre></div>
+<p>确保你的设备处于 <code class="notranslate">device</code> 状态。</p>
+</li>
+<li>
+<p><strong>在设备上创建目标目录</strong>:<br>
+我们将在 <code class="notranslate">/data/local/tmp/llama.cpp-qnn/</code> 下创建目录结构。<code class="notranslate">/data/local/tmp</code> 是一个用户可写入的临时目录。</p>
+<div class="highlight highlight-source-shell"><pre class="notranslate">adb shell <span class="pl-s"><span class="pl-pds">"</span>mkdir -p /data/local/tmp/llama.cpp-qnn/bin<span class="pl-pds">"</span></span>
+adb shell <span class="pl-s"><span class="pl-pds">"</span>mkdir -p /data/local/tmp/llama.cpp-qnn/lib<span class="pl-pds">"</span></span></pre></div>
+</li>
+<li>
+<p><strong>推送编译好的执行文件和库</strong>:<br>
+进入 <code class="notranslate">install-qnn</code> 目录下，将 <code class="notranslate">bin</code> 和 <code class="notranslate">lib</code> 目录推送到设备。</p>
+<div class="highlight highlight-source-shell"><pre class="notranslate"><span class="pl-c1">cd</span> install-qnn/usr/local/
+adb push bin /data/local/tmp/llama.cpp-qnn/
+adb push lib /data/local/tmp/llama.cpp-qnn/</pre></div>
+<ul>
+<li><strong>注意</strong>: <code class="notranslate">lib</code> 目录可能包含 QNN 运行所需的动态库 (<code class="notranslate">libQNN_*.so</code>)。确保这些库也被推送到设备。</li>
+</ul>
+</li>
+<li>
+<p><strong>推送 GGUF 模型文件</strong>:<br>
+回到 <code class="notranslate">llama.cpp</code> 根目录，推送转换好的 GGUF 模型。</p>
+<div class="highlight highlight-source-shell"><pre class="notranslate"><span class="pl-c1">cd</span> ../../ <span class="pl-c"><span class="pl-c">#</span> 回到 llama.cpp 根目录</span>
+adb push qwen1.5-0.5B_fp32.gguf /data/local/tmp/llama.cpp-qnn/</pre></div>
+</li>
+<li>
+<p><strong>验证文件是否已成功推送</strong>:</p>
+<div class="highlight highlight-source-shell"><pre class="notranslate">adb shell <span class="pl-s"><span class="pl-pds">"</span>ls -RF /data/local/tmp/llama.cpp-qnn/<span class="pl-pds">"</span></span></pre></div>
+<p>你应该能看到 <code class="notranslate">bin/</code>、<code class="notranslate">lib/</code> 目录以及 <code class="notranslate">qwen1.5-0.5B_fp32.gguf</code> 文件。</p>
+</li>
+</ol>
+<h1>步骤四：在 Android 设备上运行推理</h1>
+<p>现在所有文件都已就绪，我们可以在 Android 设备上运行 Qwen 1.5 模型进行推理了。</p>
+<ol>
+<li>
+<p><strong>进入 Android 设备 Shell</strong>:</p>
+<div class="highlight highlight-source-shell"><pre class="notranslate">adb shell</pre></div>
+</li>
+<li>
+<p><strong>导航到可执行文件目录</strong>:</p>
+<div class="highlight highlight-source-shell"><pre class="notranslate"><span class="pl-c1">cd</span> /data/local/tmp/llama.cpp-qnn/bin/</pre></div>
+</li>
+<li>
+<p><strong>设置动态库路径</strong>:<br>
+如果 <code class="notranslate">llama.cpp</code> 或 QNN 运行时依赖任何动态库，需要设置 <code class="notranslate">LD_LIBRARY_PATH</code> 环境变量，以便系统能找到这些库。</p>
+<div class="highlight highlight-source-shell"><pre class="notranslate"><span class="pl-k">export</span> LD_LIBRARY_PATH=<span class="pl-smi">$PWD</span>:/data/local/tmp/llama.cpp-qnn/lib:<span class="pl-smi">$LD_LIBRARY_PATH</span></pre></div>
+<ul>
+<li><code class="notranslate">$PWD</code>: 将当前目录（<code class="notranslate">bin</code>）添加到路径中。</li>
+<li><code class="notranslate">/data/local/tmp/llama.cpp-qnn/lib</code>: 将 QNN 运行时库的路径添加到路径中。</li>
+</ul>
+</li>
+<li>
+<p><strong>赋予执行权限</strong>:<br>
+<code class="notranslate">llama-cli</code> (或 <code class="notranslate">main</code>) 可执行文件需要有执行权限。</p>
+<div class="highlight highlight-source-shell"><pre class="notranslate">chmod +x ./llama-cli</pre></div>
+</li>
+<li>
+<p><strong>运行模型推理</strong>:<br>
+现在，你可以执行 <code class="notranslate">llama-cli</code> 并指定模型文件。</p>
+<div class="highlight highlight-source-shell"><pre class="notranslate">./llama-cli -m ../qwen1.5-0.5B_fp32.gguf \
+            -p <span class="pl-s"><span class="pl-pds">"</span>你好，请自我介绍一下。<span class="pl-pds">"</span></span> \
+            -n 256 \
+            -ngl 99 \
+            -t 4</pre></div>
+<ul>
+<li><code class="notranslate">-m ../qwen1.5-0.5B_fp32.gguf</code>: 指定模型文件路径。模型在 <code class="notranslate">llama-cli</code> 的父目录。</li>
+<li><code class="notranslate">-p "你好，请自我介绍一下。"</code>: 指定输入提示。</li>
+<li><code class="notranslate">-n 256</code>: 指定生成文本的最大长度（tokens）。</li>
+<li><code class="notranslate">-ngl 99</code>: 这是一个关键参数，表示将模型的多少层放入 GPU (QNN) 运行。<code class="notranslate">99</code> 通常表示所有层都尝试加载到 GPU。如果你的设备支持 QNN，这会极大地加速推理。如果 QNN 初始化失败或不支持，<code class="notranslate">llama.cpp</code> 会回退到 CPU 运行。</li>
+<li><code class="notranslate">-t 4</code>: 指定推理使用的 CPU 线程数。</li>
+</ul>
+<p>模型将开始加载并进行推理，你将在命令行看到模型的输出。第一次运行可能会因为 QNN SDK 的初始化而稍慢。</p>
+</li>
+</ol></div>
+<div style="font-size:small;margin-top:8px;float:right;"></div>
+
+<button class="btn btn-block" type="button" onclick="openComments()" id="cmButton">评论</button>
+<div class="comments" id="comments"></div>
+
+</div>
+    <div id="footer"><div id="footer1">Copyright © <span id="copyrightYear"></span> <a href="https://Ethan-a2.github.io">Brue Leo's Blog</a></div>
+<div id="footer2">
+    <span id="runday"></span><span>Powered by <a href="https://meekdai.com/Gmeek.html" target="_blank">Gmeek</a></span>
+</div>
+
+<script>
+var now=new Date();
+document.getElementById("copyrightYear").innerHTML=now.getFullYear();
+
+if(""!=""){
+    var startSite=new Date("");
+    var diff=now.getTime()-startSite.getTime();
+    var diffDay=Math.floor(diff/(1000*60*60*24));
+    document.getElementById("runday").innerHTML="网站运行"+diffDay+"天"+" • ";
+}
+</script></div>
+</body>
+<script>
+var IconList={'sun': 'M8 10.5a2.5 2.5 0 100-5 2.5 2.5 0 000 5zM8 12a4 4 0 100-8 4 4 0 000 8zM8 0a.75.75 0 01.75.75v1.5a.75.75 0 01-1.5 0V.75A.75.75 0 018 0zm0 13a.75.75 0 01.75.75v1.5a.75.75 0 01-1.5 0v-1.5A.75.75 0 018 13zM2.343 2.343a.75.75 0 011.061 0l1.06 1.061a.75.75 0 01-1.06 1.06l-1.06-1.06a.75.75 0 010-1.06zm9.193 9.193a.75.75 0 011.06 0l1.061 1.06a.75.75 0 01-1.06 1.061l-1.061-1.06a.75.75 0 010-1.061zM16 8a.75.75 0 01-.75.75h-1.5a.75.75 0 010-1.5h1.5A.75.75 0 0116 8zM3 8a.75.75 0 01-.75.75H.75a.75.75 0 010-1.5h1.5A.75.75 0 013 8zm10.657-5.657a.75.75 0 010 1.061l-1.061 1.06a.75.75 0 11-1.06-1.06l1.06-1.06a.75.75 0 011.06 0zm-9.193 9.193a.75.75 0 010 1.06l-1.06 1.061a.75.75 0 11-1.061-1.06l1.06-1.061a.75.75 0 011.061 0z', 'moon': 'M9.598 1.591a.75.75 0 01.785-.175 7 7 0 11-8.967 8.967.75.75 0 01.961-.96 5.5 5.5 0 007.046-7.046.75.75 0 01.175-.786zm1.616 1.945a7 7 0 01-7.678 7.678 5.5 5.5 0 107.678-7.678z', 'sync': 'M1.705 8.005a.75.75 0 0 1 .834.656 5.5 5.5 0 0 0 9.592 2.97l-1.204-1.204a.25.25 0 0 1 .177-.427h3.646a.25.25 0 0 1 .25.25v3.646a.25.25 0 0 1-.427.177l-1.38-1.38A7.002 7.002 0 0 1 1.05 8.84a.75.75 0 0 1 .656-.834ZM8 2.5a5.487 5.487 0 0 0-4.131 1.869l1.204 1.204A.25.25 0 0 1 4.896 6H1.25A.25.25 0 0 1 1 5.75V2.104a.25.25 0 0 1 .427-.177l1.38 1.38A7.002 7.002 0 0 1 14.95 7.16a.75.75 0 0 1-1.49.178A5.5 5.5 0 0 0 8 2.5Z', 'home': 'M6.906.664a1.749 1.749 0 0 1 2.187 0l5.25 4.2c.415.332.657.835.657 1.367v7.019A1.75 1.75 0 0 1 13.25 15h-3.5a.75.75 0 0 1-.75-.75V9H7v5.25a.75.75 0 0 1-.75.75h-3.5A1.75 1.75 0 0 1 1 13.25V6.23c0-.531.242-1.034.657-1.366l5.25-4.2Zm1.25 1.171a.25.25 0 0 0-.312 0l-5.25 4.2a.25.25 0 0 0-.094.196v7.019c0 .138.112.25.25.25H5.5V8.25a.75.75 0 0 1 .75-.75h3.5a.75.75 0 0 1 .75.75v5.25h2.75a.25.25 0 0 0 .25-.25V6.23a.25.25 0 0 0-.094-.195Z', 'github': 'M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z', 'copy': 'M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 0 1 0 1.5h-1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-1.5a.75.75 0 0 1 1.5 0v1.5A1.75 1.75 0 0 1 9.25 16h-7.5A1.75 1.75 0 0 1 0 14.25Z M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0 1 14.25 11h-7.5A1.75 1.75 0 0 1 5 9.25Zm1.75-.25a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z', 'check': 'M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z'};
+var utterancesLoad=0;
+
+let themeSettings={
+    "dark": ["dark","moon","#00f0ff","dark-blue"],
+    "light": ["light","sun","#ff5000","github-light"],
+    "auto": ["auto","sync","","preferred-color-scheme"]
+};
+function changeTheme(mode, icon, color, utheme){
+    document.documentElement.setAttribute("data-color-mode",mode);
+    document.getElementById("themeSwitch").setAttribute("d",value=IconList[icon]);
+    document.getElementById("themeSwitch").parentNode.style.color=color;
+    if(utterancesLoad==1){utterancesTheme(utheme);}
+}
+function modeSwitch(){
+    let currentMode=document.documentElement.getAttribute('data-color-mode');
+    let newMode = currentMode === "light" ? "dark" : currentMode === "dark" ? "auto" : "light";
+    localStorage.setItem("meek_theme", newMode);
+    if(themeSettings[newMode]){
+        changeTheme(...themeSettings[newMode]);
+    }
+}
+function utterancesTheme(theme){
+    const message={type:'set-theme',theme: theme};
+    const iframe=document.getElementsByClassName('utterances-frame')[0];
+    iframe.contentWindow.postMessage(message,'https://utteranc.es');
+}
+if(themeSettings[theme]){changeTheme(...themeSettings[theme]);}
+console.log("\n %c Gmeek last https://github.com/Meekdai/Gmeek \n","padding:5px 0;background:#02d81d;color:#fff");
+</script>
+
+<script>
+document.getElementById("pathHome").setAttribute("d",IconList["home"]);
+document.getElementById("pathIssue").setAttribute("d",IconList["github"]);
+
+
+
+function openComments(){
+    cm=document.getElementById("comments");
+    cmButton=document.getElementById("cmButton");
+    cmButton.innerHTML="loading";
+    span=document.createElement("span");
+    span.setAttribute("class","AnimatedEllipsis");
+    cmButton.appendChild(span);
+
+    script=document.createElement("script");
+    script.setAttribute("src","https://utteranc.es/client.js");
+    script.setAttribute("repo","Ethan-a2/Ethan-a2.github.io");
+    script.setAttribute("issue-term","title");
+    
+    if(localStorage.getItem("meek_theme")=="dark"){script.setAttribute("theme","dark-blue");}
+    else if(localStorage.getItem("meek_theme")=="light") {script.setAttribute("theme","github-light");}
+    else{script.setAttribute("theme","preferred-color-scheme");}
+    
+    script.setAttribute("crossorigin","anonymous");
+    script.setAttribute("async","");
+    cm.appendChild(script);
+
+    int=self.setInterval("iFrameLoading()",200);
+}
+
+function iFrameLoading(){
+    var utterances=document.getElementsByClassName('utterances');
+    if(utterances.length==1){
+        if(utterances[0].style.height!=""){
+            utterancesLoad=1;
+            int=window.clearInterval(int);
+            document.getElementById("cmButton").style.display="none";
+            console.log("utterances Load OK");
+        }
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    const createClipboardHTML = (codeContent, additionalClasses = '') => `
+        <pre class="notranslate"><code class="notranslate">${codeContent}</code></pre>
+        <div class="clipboard-container position-absolute right-0 top-0 ${additionalClasses}">
+            <clipboard-copy class="ClipboardButton btn m-2 p-0" role="button" style="display: inherit;">
+                <svg height="16" width="16" class="octicon octicon-copy m-2"><path d="${IconList["copy"]}"></path></svg>
+                <svg height="16" width="16" class="octicon octicon-check color-fg-success m-2 d-none"><path d="${IconList["check"]}"></path></svg>
+            </clipboard-copy>
+            <div class="copy-feedback">Copied!</div>
+        </div>
+    `;
+
+    const handleCodeElements = (selector = '') => {
+        document.querySelectorAll(selector).forEach(codeElement => {
+            const codeContent = codeElement.innerHTML;
+            const newStructure = document.createElement('div');
+            newStructure.className = 'snippet-clipboard-content position-relative overflow-auto';
+            newStructure.innerHTML = createClipboardHTML(codeContent);
+
+            const parentElement = codeElement.parentElement;
+            if (selector.includes('highlight')) {
+                parentElement.insertBefore(newStructure, codeElement.nextSibling);
+                parentElement.removeChild(codeElement);
+            } else {
+                parentElement.parentElement.replaceChild(newStructure, parentElement);
+            }
+        });
+    };
+
+    handleCodeElements('pre.notranslate > code.notranslate');
+    handleCodeElements('div.highlight > pre.notranslate');
+
+    let currentFeedback = null;
+    document.querySelectorAll('clipboard-copy').forEach(copyButton => {
+        copyButton.addEventListener('click', () => {
+            const codeContent = copyButton.closest('.snippet-clipboard-content').innerText;
+            const tempTextArea = document.createElement('textarea');
+            tempTextArea.value = codeContent;
+            document.body.appendChild(tempTextArea);
+            tempTextArea.select();
+            document.execCommand('copy');
+            document.body.removeChild(tempTextArea);
+
+            const copyIcon = copyButton.querySelector('.octicon-copy');
+            const checkIcon = copyButton.querySelector('.octicon-check');
+            const copyFeedback = copyButton.nextElementSibling;
+
+            if (currentFeedback && currentFeedback !== copyFeedback) {currentFeedback.style.display = 'none';}
+            currentFeedback = copyFeedback;
+
+            copyIcon.classList.add('d-none');
+            checkIcon.classList.remove('d-none');
+            copyFeedback.style.display = 'block';
+            copyButton.style.borderColor = 'var(--color-success-fg)';
+
+            setTimeout(() => {
+                copyIcon.classList.remove('d-none');
+                checkIcon.classList.add('d-none');
+                copyFeedback.style.display = 'none';
+                copyButton.style.borderColor = '';
+            }, 2000);
+        });
+    });
+});
+
+</script>
+
+
+</html>
