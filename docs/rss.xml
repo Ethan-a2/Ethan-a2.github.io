@@ -1,5 +1,170 @@
 <?xml version='1.0' encoding='UTF-8'?>
-<rss xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/" version="2.0"><channel><title>Brue Leo's Blog</title><link>https://Ethan-a2.github.io</link><description>Freedom is not free.</description><copyright>Brue Leo's Blog</copyright><docs>http://www.rssboard.org/rss-specification</docs><generator>python-feedgen</generator><image><url>https://avatars.githubusercontent.com/u/61342241?v=4&amp;size=64</url><title>avatar</title><link>https://Ethan-a2.github.io</link></image><lastBuildDate>Sun, 03 Aug 2025 11:07:26 +0000</lastBuildDate><managingEditor>Brue Leo's Blog</managingEditor><ttl>60</ttl><webMaster>Brue Leo's Blog</webMaster><item><title>小米15 NPU部署Llama-3.2-1B-Instruct</title><link>https://Ethan-a2.github.io/post/xiao-mi-15%20NPU-bu-shu-Llama-3.2-1B-Instruct.html</link><description># 准备
+<rss xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/" version="2.0"><channel><title>Brue Leo's Blog</title><link>https://Ethan-a2.github.io</link><description>Freedom is not free.</description><copyright>Brue Leo's Blog</copyright><docs>http://www.rssboard.org/rss-specification</docs><generator>python-feedgen</generator><image><url>https://avatars.githubusercontent.com/u/61342241?v=4&amp;size=64</url><title>avatar</title><link>https://Ethan-a2.github.io</link></image><lastBuildDate>Sun, 07 Sep 2025 09:09:36 +0000</lastBuildDate><managingEditor>Brue Leo's Blog</managingEditor><ttl>60</ttl><webMaster>Brue Leo's Blog</webMaster><item><title>d2ltvm编译</title><link>https://Ethan-a2.github.io/post/d2ltvm-bian-yi.html</link><description>
+# 环境
+- tvm-0.19 + numpy  &lt; 1.24
+- ubuntu 22.04
+- llvm-15
+- 因为依赖mxnet，但是mxnet 2022后不再更新，所以numpy要降级到1.24以前的版本
+- TVM 0.20的版本有了比较大的更新，所以这里适配了0.19的版本
+	- https://github.com/apache/tvm/issues/17914
+- LLVM更高的版本应该也是，但是ubuntu22.04安装llvm-15比较方便，就先用了这个版本
+
+
+# 编译通过的版本
+- https://github.com/Ethan-a2/d2ltvm
+- 适配了TVM0.19之后的版本，前4章可以正常编译运行
+
+# 各章思维导图
+
+
+```mermaid
+mindmap
+  root((Getting Started))
+    Installation
+      Python env
+      TVM build (LLVM, CUDA)
+      MXNet
+    Vector Add
+      NumPy impl
+      TVM compute
+      Schedule
+      Build &amp; Run
+    Neural Network Inference
+      Pretrained model (ResNet18)
+      Relay IR
+      Compilation (LLVM)
+      Save/Load Module
+    Remote Execution
+      RPC server
+      Cross-compilation
+      Run on remote device
+```
+
+
+
+
+
+```mermaid
+mindmap
+  root((Expressions for Operators))
+    Data Types
+      float32
+      int8
+      cast/astype
+    Shapes
+      te.var
+      multi-dim tensors
+    Index &amp; Shape Expressions
+      Transpose
+      Reshape
+      Slicing
+    Reduction
+      te.reduce_axis
+      te.sum, te.max, te.min
+      comm_reducer
+    Conditional
+      if_then_else
+    Truth Values
+      all
+      any
+```
+
+
+
+```mermaid
+mindmap
+  root((Common Operators))
+    Broadcast Add
+    MatMul
+    Conv2D
+    Depthwise Conv
+    Pooling
+      MaxPool
+      AvgPool
+    BatchNorm
+```
+
+
+
+```mermaid
+mindmap
+  root((CPU Operator Optimizations))
+    CPU Architecture
+      Cache
+      SIMD
+      Pipeline
+    Function Call Overhead
+    Vector Add
+    Broadcast Add
+    MatMul
+      Loop blocking
+      Vectorization
+    Convolution
+      Packed layout
+    Pooling
+    BatchNorm
+```
+
+
+
+```mermaid
+mindmap
+  root((GPU Operator Optimizations))
+    GPU Architecture
+      Warp
+      SM
+      Shared Memory
+    Vector Add
+    Broadcast Add
+    MatMul
+      Thread tiling
+      Shared memory
+    Conv2D
+    Depthwise Conv
+    Pooling
+    BatchNorm
+```
+
+
+
+# TVM编译
+
+```
+sudo apt-get install -y -q \
+        git \
+        cmake \
+        build-essential \
+        libtinfo-dev \
+        libffi-dev \
+        zlib1g-dev \
+        llvm-15-dev \
+        libclang-15-dev \
+        ninja-build
+
+sudo apt install nvidia-cuda-toolkit
+
+git clone --recursive https://github.com/apache/tvm tvm-src
+mkdir build; cd build
+
+cp ../cmake/config.cmake .
+echo 'set(USE_LLVM \'llvm-config-15 --ignore-libllvm --link-static\')' &gt;&gt; config.cmake
+sed -i 's/# set(USE_CUDA OFF)/set(USE_CUDA ON)/g' config.cmake
+set(USE_GTEST OFF)
+
+cmake ../
+cmake --build . --parallel $(nproc)
+```
+
+
+# d2ltvm相关手册
+- https://tvm.d2l.ai/d2l-tvm.pdf
+- https://github.com/d2l-ai/d2l-tvm
+- http://tvm.d2l.ai/d2l-tvm.zip
+- https://tvm.d2l.ai/
+
+
+# 结论
+- 提供一种方式：不用手工写底层 CUDA/C++ 内核，而是通过编译器框架统一表达和优化算子/模型。</description><guid isPermaLink="true">https://Ethan-a2.github.io/post/d2ltvm-bian-yi.html</guid><pubDate>Sun, 07 Sep 2025 09:09:08 +0000</pubDate></item><item><title>小米15 NPU部署Llama-3.2-1B-Instruct</title><link>https://Ethan-a2.github.io/post/xiao-mi-15%20NPU-bu-shu-Llama-3.2-1B-Instruct.html</link><description># 准备
 - https://huggingface.co/meta-llama/Llama-3.2-1B-Instruct
 - 显存至少需要12G。</description><guid isPermaLink="true">https://Ethan-a2.github.io/post/xiao-mi-15%20NPU-bu-shu-Llama-3.2-1B-Instruct.html</guid><pubDate>Sun, 03 Aug 2025 11:06:50 +0000</pubDate></item><item><title>HexagonNPU运行llama.cpp</title><link>https://Ethan-a2.github.io/post/HexagonNPU-yun-xing-llama.cpp.html</link><description>本文将详细介y绍如何在 Android 设备上，利用 `llama.cpp` 框架，结合高通神经网络处理单元 (QNN) 的硬件加速能力，部署并运行 Qwen 1.5 模型。</description><guid isPermaLink="true">https://Ethan-a2.github.io/post/HexagonNPU-yun-xing-llama.cpp.html</guid><pubDate>Tue, 22 Jul 2025 13:01:57 +0000</pubDate></item><item><title>Redmi K70 Pro运行Llama 1.1B</title><link>https://Ethan-a2.github.io/post/Redmi%20K70%20Pro-yun-xing-Llama%201.1B.html</link><description>
 # 前言
