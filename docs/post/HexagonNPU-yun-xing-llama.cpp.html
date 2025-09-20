@@ -167,7 +167,7 @@ huggingface-cli download Qwen/Qwen1.5-0.5B --local-dir models/Qwen1.5-0.5B</pre>
 <p><strong>修改 CMakeLists.txt (可选，根据llama.cpp版本)</strong>：<br>
 在某些 <code class="notranslate">llama.cpp</code> 版本中，<code class="notranslate">LLAMA_CURL</code> 编译选项可能默认开启。如果你的 <code class="notranslate">llama.cpp</code> 版本中存在此选项，请将其改为 <code class="notranslate">OFF</code>，因为在 Android 环境下使用 <code class="notranslate">curl</code> 可能会引入额外的复杂性，且我们不需要从 URL 下载模型。<br>
 在 <code class="notranslate">llama.cpp/CMakeLists.txt</code> 中找到并修改：</p>
-<div class="highlight highlight-source-cmake"><pre class="notranslate"><span class="pl-c1">option</span>(<span class="pl-s">LLAMA_CURL</span>       <span class="pl-s">"llama: use libcurl to download model from an URL"</span> <span class="pl-c1">OFF</span>)</pre></div>
+<div class="highlight highlight-source-cmake"><pre class="notranslate"><span class="pl-k">option</span>(LLAMA_CURL       <span class="pl-s">"llama: use libcurl to download model from an URL"</span> <span class="pl-k">OFF</span>)</pre></div>
 <ul>
 <li><strong>注意</strong>: 较新版本的 <code class="notranslate">llama.cpp</code> 可能没有这个选项，或者默认就是 <code class="notranslate">OFF</code>。请根据你的实际代码库进行检查。</li>
 </ul>
