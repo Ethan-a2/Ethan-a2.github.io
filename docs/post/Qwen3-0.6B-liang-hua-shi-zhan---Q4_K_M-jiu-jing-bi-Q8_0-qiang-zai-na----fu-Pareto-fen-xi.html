@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html data-color-mode="light" data-dark-theme="dark" data-light-theme="light" lang="zh-CN">
+<head>
+    <meta content="text/html; charset=utf-8" http-equiv="content-type" />
+    <meta name="viewport" content="width=device-width,initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <link href='https://mirrors.sustech.edu.cn/cdnjs/ajax/libs/Primer/21.0.7/primer.css' rel='stylesheet' />
+    
+    <link rel="icon" href="https://avatars.githubusercontent.com/u/61342241?v=4&size=64"><script>
+        let theme = localStorage.getItem("meek_theme") || "light";
+        document.documentElement.setAttribute("data-color-mode", theme);
+    </script>
+<meta name="description" content="
+# 背景与测试环境
+
+随着大模型部署成本日益高涨，**量化（Quantization）** 成为优化推理性能的关键手段。">
+<meta property="og:title" content="Qwen3-0.6B量化实战--Q4_K_M究竟比Q8_0强在哪--附Pareto分析">
+<meta property="og:description" content="
+# 背景与测试环境
+
+随着大模型部署成本日益高涨，**量化（Quantization）** 成为优化推理性能的关键手段。">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://Ethan-a2.github.io/post/Qwen3-0.6B-liang-hua-shi-zhan---Q4_K_M-jiu-jing-bi-Q8_0-qiang-zai-na----fu-Pareto-fen-xi.html">
+<meta property="og:image" content="https://avatars.githubusercontent.com/u/61342241?v=4&size=64">
+<title>Qwen3-0.6B量化实战--Q4_K_M究竟比Q8_0强在哪--附Pareto分析</title>
+
+
+
+</head>
+<style>
+body{box-sizing: border-box;min-width: 200px;max-width: 900px;margin: 20px auto;padding: 45px;font-size: 16px;font-family: sans-serif;line-height: 1.25;}
+#header{display:flex;padding-bottom:8px;border-bottom: 1px solid var(--borderColor-muted, var(--color-border-muted));margin-bottom: 16px;}
+#footer {margin-top:64px; text-align: center;font-size: small;}
+
+</style>
+
+<style>
+.postTitle{margin: auto 0;font-size:40px;font-weight:bold;}
+.title-right{display:flex;margin:auto 0 0 auto;}
+.title-right .circle{padding: 14px 16px;margin-right:8px;}
+#postBody{border-bottom: 1px solid var(--color-border-default);padding-bottom:36px;}
+#postBody hr{height:2px;}
+#cmButton{height:48px;margin-top:48px;}
+#comments{margin-top:64px;}
+.g-emoji{font-size:24px;}
+@media (max-width: 600px) {
+    body {padding: 8px;}
+    .postTitle{font-size:24px;}
+}
+.copy-feedback {
+    display: none;
+    position: absolute;
+    top: 10px;
+    right: 50px;
+    color: var(--color-fg-on-emphasis);
+    background-color: var(--color-fg-muted);
+    border-radius: 3px;
+    padding: 5px 8px;
+    font-size: 12px;
+}
+</style>
+
+
+
+
+<body>
+    <div id="header">
+<h1 class="postTitle">Qwen3-0.6B量化实战--Q4_K_M究竟比Q8_0强在哪--附Pareto分析</h1>
+<div class="title-right">
+    <a href="https://Ethan-a2.github.io" id="buttonHome" class="btn btn-invisible circle" title="首页">
+        <svg class="octicon" width="16" height="16">
+            <path id="pathHome" fill-rule="evenodd"></path>
+        </svg>
+    </a>
+    
+    <a href="https://github.com/Ethan-a2/Ethan-a2.github.io/issues/19" target="_blank" class="btn btn-invisible circle" title="Issue">
+        <svg class="octicon" width="16" height="16">
+            <path id="pathIssue" fill-rule="evenodd"></path>
+        </svg>
+    </a>
+    
+
+    <a class="btn btn-invisible circle" onclick="modeSwitch();" title="切换主题">
+        <svg class="octicon" width="16" height="16" >
+            <path id="themeSwitch" fill-rule="evenodd"></path>
+        </svg>
+    </a>
+
+</div>
+</div>
+    <div id="content">
+<div class="markdown-body" id="postBody"><h1>背景与测试环境</h1>
+<p>随着大模型部署成本日益高涨，<strong>量化（Quantization）</strong> 成为优化推理性能的关键手段。然而，传统认知中：<strong>更低精度（如 INT4）通常会带来可接受的精度损失，以换取速度与内存优势</strong>。</p>
+<p>本文以 <strong>Qwen3-0.6B</strong> 两个流行 GGUF 量化版本为例：</p>
+<ul>
+<li><strong>基准</strong>：<code class="notranslate">Qwen3-0.6B-Q8_0.gguf</code>（高精度，INT8）</li>
+<li><strong>对比</strong>：<code class="notranslate">Qwen3-0.6B-Q4_K_M.gguf</code>（平衡型，INT4）</li>
+</ul>
+<h1>📊 核心测试数据一览</h1>
+<p>我们对这两个版本进行了全面的基准测试，涵盖了常识推理任务（HellaSwag、ARC-Easy）、困惑度（PPL）、首字响应时间（TTFT）以及解码速度（Decode）。结果如下：</p>
+<markdown-accessiblity-table><table role="table">
+<thead>
+<tr>
+<th><strong>模型变体 (GGUF)</strong></th>
+<th><strong>HellaSwag</strong></th>
+<th><strong>ARC-Easy</strong></th>
+<th><strong>PPL (困惑度)</strong></th>
+<th><strong>TTFT (首字延迟)</strong></th>
+<th><strong>Prefill (tokens/s)</strong></th>
+<th><strong>Decode (tokens/s)</strong></th>
+<th><strong>VRAM 占用</strong></th>
+<th><strong>精度损失%</strong></th>
+<th><strong>速度提升x</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Qwen3-0.6B-Q8_0</strong></td>
+<td>0.455</td>
+<td>0.565</td>
+<td>20.3967</td>
+<td>26.507 ms</td>
+<td>51.07</td>
+<td>50.98</td>
+<td>2774 MB</td>
+<td><strong>基准</strong></td>
+<td><strong>1.00x</strong></td>
+</tr>
+<tr>
+<td><strong>Qwen3-0.6B-Q4_K_M</strong></td>
+<td>0.505</td>
+<td>0.570</td>
+<td>21.2542</td>
+<td>22.902 ms</td>
+<td>53.61</td>
+<td>53.45</td>
+<td>2766 MB</td>
+<td><strong>4.20%</strong>(PPL)<br><em>-5.39%</em>(Task)</td>
+<td><strong>1.05x</strong></td>
+</tr>
+</tbody>
+</table></markdown-accessiblity-table>
+<h1>🔍 深度解析：反常识的数据表现</h1>
+<p>通常来说，量化模型就是在“用精度换速度和空间”。但在这份测试报告中，我们发现了一些非常有趣的“反常识”现象：</p>
+<h2>1. 速度与精度的双重“意外”</h2>
+<ul>
+<li><strong>速度</strong>：Q4 解码速度 <strong>53.45 tokens/s</strong>，相比 Q8 的 <strong>50.98 tokens/s</strong> 提升 <strong>5%</strong>（TTFT 降低约 13.6%）。</li>
+<li><strong>准确率</strong>：在 HellaSwag 上，Q4 达到 <strong>0.505</strong>，<strong>反超 Q8 的 0.455</strong>，提升约 11%！ARC-Easy 同样小幅上升。</li>
+<li><strong>困惑度（PPL）</strong>：Q4 为 21.2542，比 Q8 的 20.3967 <strong>上升 4.2%</strong>，符合量化导致语言建模精度下降的预期。</li>
+</ul>
+<p><strong>矛盾点</strong>：分类/推理任务准确率上升，但语言建模困惑度上升。这可能源于：</p>
+<ol>
+<li><strong>测试集差异</strong>：HellaSwag/ARC-Easy 对量化更鲁棒，或 Q4 偶然得分更高。</li>
+<li><strong>任务敏感性不同</strong>：分类任务可能对词汇分布不敏感，而 PPL 直接衡量概率预测质量。</li>
+<li><strong>小模型特性</strong>：0.6B 模型参数量小，量化后反而抑制过拟合或改变决策边界。</li>
+</ol>
+<h2>2. 速度提升符合预期，但 VRAM 几乎没变？</h2>
+<p>从 Q8 降级到 Q4，按理说模型权重体积会缩小一半左右。但在实际推理中，VRAM 的占用仅仅从 2774 MB 降到了 2766 MB，几乎没有变化。</p>
+<ul>
+<li><strong>原因剖析</strong>：对于 0.6B 这种超小参数量的模型，其自身的权重文件在显存中的占比其实并不大。在实际运行（尤其是大上下文或多轮对话）时，<strong>KV Cache 和推理框架预分配的上下文显存占据了绝对的主导地位</strong>。因此，如果你期望通过 Q4 量化来大幅拯救你的显存，在这个特定规模的模型上可能会有些失望。</li>
+<li><strong>速度红利</strong>：尽管显存没省下多少，但得益于内存带宽压力的减小，Q4_K_M 的解码速度提升了约 <strong>5%</strong>（达到 53.45 tokens/s），且首字响应时间（TTFT）加快了近 <strong>16%</strong>。</li>
+</ul>
+<h2>3. 精度之谜：PPL 衰减，但下游任务反而变聪明了？</h2>
+<p>这是本次测试中最令人惊喜的部分。</p>
+<p>作为衡量模型基础能力的语言困惑度（PPL），Q4_K_M 相比 Q8_0 上升了 4.2%（PPL 越低越好，上升意味着基础拟合能力出现衰减，这是量化的正常现象）。</p>
+<p>然而，在考察实际应用能力的下游任务（HellaSwag 和 ARC-Easy）中，<strong>Q4_K_M 的得分不降反升，综合准确率反而提升了 5.39%！</strong></p>
+<ul>
+<li><strong>原因剖析</strong>：这在极低比特量化中偶尔会发生，通常被视为一种<strong>正则化效应（Regularization effect）</strong>。量化过程抹平了一些模型在训练时拟合的“噪声”，反而让它在某些特定的选择题任务上泛化能力更强。当然，这不代表 Q4 的绝对智商高于 Q8，但在特定应用场景下，它确实能给你“免费的午餐”。</li>
+</ul>
+<h2>4. Pareto 分析：谁在最优前沿？</h2>
+<p><a target="_blank" rel="noopener noreferrer" href="https://github.com/user-attachments/assets/6153e74c-3b56-45c7-b8c6-9ca43498d7f8"><img width="1000" height="600" alt="Image" src="https://github.com/user-attachments/assets/6153e74c-3b56-45c7-b8c6-9ca43498d7f8" style="max-width: 100%; height: auto; max-height: 600px;"></a></p>
+<p>通过散点图可以清晰地看到，<strong>Qwen3-0.6B-Q4_K_M.gguf 在精度（综合任务得分）和速度（解码吞吐量）两个维度上，都严格优于 Q8_0 基准</strong>。</p>
+<ul>
+<li><strong>罕见的“无损”优化</strong>：在LLM量化过程中，通常的 trade-off 是牺牲精度来换取速度和VRAM的减少。但在这个 0.6B 小模型和这两个特定下游任务上，Q4_K_M 变体实现了一个“双赢”局面：不仅速度提升了 5%，而且综合得分也提升了。</li>
+<li><strong>帕累托前沿</strong>：在当前数据集中，<strong>只有 Q4_K_M 构成了帕累托前沿</strong>。Q8_0 处于被 Q4 完全超越（Dominated）的非最优区域，在当前性能视角下不应被优先选择。</li>
+</ul>
+<p>(注：如果我们需要评估 PPL 损失，Q8 会在 PPL 指标上优于 Q4，但综合“下游任务精度”和“速度”来看，Q4 的这次量化表现非常优异。)</p>
+<h2>为何 Q4 更“准”？</h2>
+<ol>
+<li><strong>正则化效应</strong>：INT4 量化引入了低比特噪声，可能起到轻微正则化作用，提升小模型泛化能力。</li>
+<li><strong>测试集规模限制</strong>：HellaSwag 验证集仅约 10k 样本，±0.05 波动可能在统计误差范围内。建议多次评估取均值。</li>
+<li><strong>任务匹配度</strong>：Q4_K_M 采用 <strong>K-Means 量化</strong>（<code class="notranslate">K_M</code> 表示 K-Means 量化，双模态），对不同权重组采用不同缩放因子，可能意外保留了关键推理参数。</li>
+</ol>
+<p><strong>关键提醒</strong>：PPL 上升 4.2% 表明<strong>语言建模质量确实下降</strong>。若您的应用依赖流畅生成或长上下文连贯性，Q8 仍是更安全选择。</p>
+<h2>部署建议：如何选择？</h2>
+<markdown-accessiblity-table><table role="table">
+<thead>
+<tr>
+<th>场景</th>
+<th>推荐版本</th>
+<th>理由</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>分类/推理/问答</strong></td>
+<td>Q4_K_M</td>
+<td>更快、更准（基于 HellaSwag/ARC），内存略低</td>
+</tr>
+<tr>
+<td><strong>长文本生成、对话</strong></td>
+<td>Q8_0</td>
+<td>PPL 更低，生成质量更稳定</td>
+</tr>
+<tr>
+<td><strong>内存极度受限设备</strong></td>
+<td>可尝试更低精度</td>
+<td>Q4 已仅节省 8 MB VRAM，收益不高；考虑更激进量化（Q4_0、Q3_K_S）</td>
+</tr>
+<tr>
+<td><strong>追求极致吞吐量</strong></td>
+<td>Q4_K_M 或 Q2_K</td>
+<td>速度仍有提升空间，但需接受 PPL 显著上升</td>
+</tr>
+</tbody>
+</table></markdown-accessiblity-table>
+<h2>扩展思考：量化评估的多元性</h2>
+<ol>
+<li><strong>单一指标局限性</strong>：仅看准确率可能掩盖生成质量恶化。务必结合：
+<ul>
+<li><strong>PPL</strong>（语言建模）</li>
+<li><strong>HumanEval</strong>（代码生成）</li>
+<li><strong>推理链质量</strong>（如 GSM8K 的步骤正确率）</li>
+</ul>
+</li>
+<li><strong>硬件感知</strong>：本测试在 CPU 上运行，GPU 上量化加速比可能不同。</li>
+<li><strong>框架影响</strong>：GGUF + llama.cpp 的量化实现与 AWQ、GPTQ 等表现可能有差异。</li>
+</ol>
+<h1>测量方法</h1>
+<h2>PPL</h2>
+<pre class="notranslate"><code class="notranslate">./llama.cpp/pkg-cuda/llama.cpp/bin/llama-perplexity -m Qwen3-0.6B-Q8_0.gguf -f wikitext-2-raw/wiki.test.raw --chunks 50
+./llama.cpp/pkg-cuda/llama.cpp/bin/llama-perplexity -m Qwen3-0.6B-Q4_K_M.gguf -f wikitext-2-raw/wiki.test.raw --chunks 50
+</code></pre>
+<h2>ACC</h2>
+<pre class="notranslate"><code class="notranslate">pip install "lm-eval[gguf]"
+lm_eval --model hf --model_args pretrained=.,gguf_file=Qwen3-0.6B-Q8_0.gguf --tasks arc_easy,hellaswag --num_fewshot 0 --batch_size auto --seed 42 --limit 200 --wandb_args project=llm_eval_benchmark
+lm_eval --model hf --model_args pretrained=.,gguf_file=Qwen3-0.6B-Q4_K_M.gguf --tasks arc_easy,hellaswag --num_fewshot 0 --batch_size auto --seed 42 --limit 200 --wandb_args project=llm_eval_benchmark
+</code></pre>
+<h2>Throughput</h2>
+<pre class="notranslate"><code class="notranslate">./llama.cpp/pkg-cuda/llama.cpp/bin/llama-bench -m ./Qwen3-0.6B-Q8_0.gguf -n 512 -b 1 -r 2 -o json
+./llama.cpp/pkg-cuda/llama.cpp/bin/llama-bench -m ./Qwen3-0.6B-Q4_K_M.gguf -n 512 -b 1 -r 2 -o json
+</code></pre></div>
+<div style="font-size:small;margin-top:8px;float:right;"></div>
+
+<button class="btn btn-block" type="button" onclick="openComments()" id="cmButton">评论</button>
+<div class="comments" id="comments"></div>
+
+</div>
+    <div id="footer"><div id="footer1">Copyright © <span id="copyrightYear"></span> <a href="https://Ethan-a2.github.io">Brue Leo's Blog</a></div>
+<div id="footer2">
+    <span id="runday"></span><span>Powered by <a href="https://meekdai.com/Gmeek.html" target="_blank">Gmeek</a></span>
+</div>
+
+<script>
+var now=new Date();
+document.getElementById("copyrightYear").innerHTML=now.getFullYear();
+
+if(""!=""){
+    var startSite=new Date("");
+    var diff=now.getTime()-startSite.getTime();
+    var diffDay=Math.floor(diff/(1000*60*60*24));
+    document.getElementById("runday").innerHTML="网站运行 "+diffDay+" 天"+" • ";
+}
+</script></div>
+</body>
+<script>
+var IconList={'sun': 'M8 10.5a2.5 2.5 0 100-5 2.5 2.5 0 000 5zM8 12a4 4 0 100-8 4 4 0 000 8zM8 0a.75.75 0 01.75.75v1.5a.75.75 0 01-1.5 0V.75A.75.75 0 018 0zm0 13a.75.75 0 01.75.75v1.5a.75.75 0 01-1.5 0v-1.5A.75.75 0 018 13zM2.343 2.343a.75.75 0 011.061 0l1.06 1.061a.75.75 0 01-1.06 1.06l-1.06-1.06a.75.75 0 010-1.06zm9.193 9.193a.75.75 0 011.06 0l1.061 1.06a.75.75 0 01-1.06 1.061l-1.061-1.06a.75.75 0 010-1.061zM16 8a.75.75 0 01-.75.75h-1.5a.75.75 0 010-1.5h1.5A.75.75 0 0116 8zM3 8a.75.75 0 01-.75.75H.75a.75.75 0 010-1.5h1.5A.75.75 0 013 8zm10.657-5.657a.75.75 0 010 1.061l-1.061 1.06a.75.75 0 11-1.06-1.06l1.06-1.06a.75.75 0 011.06 0zm-9.193 9.193a.75.75 0 010 1.06l-1.06 1.061a.75.75 0 11-1.061-1.06l1.06-1.061a.75.75 0 011.061 0z', 'moon': 'M9.598 1.591a.75.75 0 01.785-.175 7 7 0 11-8.967 8.967.75.75 0 01.961-.96 5.5 5.5 0 007.046-7.046.75.75 0 01.175-.786zm1.616 1.945a7 7 0 01-7.678 7.678 5.5 5.5 0 107.678-7.678z', 'sync': 'M1.705 8.005a.75.75 0 0 1 .834.656 5.5 5.5 0 0 0 9.592 2.97l-1.204-1.204a.25.25 0 0 1 .177-.427h3.646a.25.25 0 0 1 .25.25v3.646a.25.25 0 0 1-.427.177l-1.38-1.38A7.002 7.002 0 0 1 1.05 8.84a.75.75 0 0 1 .656-.834ZM8 2.5a5.487 5.487 0 0 0-4.131 1.869l1.204 1.204A.25.25 0 0 1 4.896 6H1.25A.25.25 0 0 1 1 5.75V2.104a.25.25 0 0 1 .427-.177l1.38 1.38A7.002 7.002 0 0 1 14.95 7.16a.75.75 0 0 1-1.49.178A5.5 5.5 0 0 0 8 2.5Z', 'home': 'M6.906.664a1.749 1.749 0 0 1 2.187 0l5.25 4.2c.415.332.657.835.657 1.367v7.019A1.75 1.75 0 0 1 13.25 15h-3.5a.75.75 0 0 1-.75-.75V9H7v5.25a.75.75 0 0 1-.75.75h-3.5A1.75 1.75 0 0 1 1 13.25V6.23c0-.531.242-1.034.657-1.366l5.25-4.2Zm1.25 1.171a.25.25 0 0 0-.312 0l-5.25 4.2a.25.25 0 0 0-.094.196v7.019c0 .138.112.25.25.25H5.5V8.25a.75.75 0 0 1 .75-.75h3.5a.75.75 0 0 1 .75.75v5.25h2.75a.25.25 0 0 0 .25-.25V6.23a.25.25 0 0 0-.094-.195Z', 'github': 'M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z', 'copy': 'M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 0 1 0 1.5h-1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-1.5a.75.75 0 0 1 1.5 0v1.5A1.75 1.75 0 0 1 9.25 16h-7.5A1.75 1.75 0 0 1 0 14.25Z M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0 1 14.25 11h-7.5A1.75 1.75 0 0 1 5 9.25Zm1.75-.25a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z', 'check': 'M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z'};
+var utterancesLoad=0;
+
+let themeSettings={
+    "dark": ["dark","moon","#00f0ff","dark-blue"],
+    "light": ["light","sun","#ff5000","github-light"],
+    "auto": ["auto","sync","","preferred-color-scheme"]
+};
+function changeTheme(mode, icon, color, utheme){
+    document.documentElement.setAttribute("data-color-mode",mode);
+    document.getElementById("themeSwitch").setAttribute("d",value=IconList[icon]);
+    document.getElementById("themeSwitch").parentNode.style.color=color;
+    if(utterancesLoad==1){utterancesTheme(utheme);}
+}
+function modeSwitch(){
+    let currentMode=document.documentElement.getAttribute('data-color-mode');
+    let newMode = currentMode === "light" ? "dark" : currentMode === "dark" ? "auto" : "light";
+    localStorage.setItem("meek_theme", newMode);
+    if(themeSettings[newMode]){
+        changeTheme(...themeSettings[newMode]);
+    }
+}
+function utterancesTheme(theme){
+    const message={type:'set-theme',theme: theme};
+    const iframe=document.getElementsByClassName('utterances-frame')[0];
+    iframe.contentWindow.postMessage(message,'https://utteranc.es');
+}
+if(themeSettings[theme]){changeTheme(...themeSettings[theme]);}
+console.log("\n %c Gmeek last https://github.com/Meekdai/Gmeek \n","padding:5px 0;background:#02d81d;color:#fff");
+</script>
+
+<script>
+document.getElementById("pathHome").setAttribute("d",IconList["home"]);
+document.getElementById("pathIssue").setAttribute("d",IconList["github"]);
+
+
+
+function openComments(){
+    cm=document.getElementById("comments");
+    cmButton=document.getElementById("cmButton");
+    cmButton.disabled=true;
+    cmButton.innerHTML="loading";
+    span=document.createElement("span");
+    span.setAttribute("class","AnimatedEllipsis");
+    cmButton.appendChild(span);
+
+    script=document.createElement("script");
+    script.setAttribute("src","https://utteranc.es/client.js");
+    script.setAttribute("repo","Ethan-a2/Ethan-a2.github.io");
+    script.setAttribute("issue-term","title");
+    
+    if(localStorage.getItem("meek_theme")=="dark"){script.setAttribute("theme","dark-blue");}
+    else if(localStorage.getItem("meek_theme")=="light") {script.setAttribute("theme","github-light");}
+    else{script.setAttribute("theme","preferred-color-scheme");}
+    
+    script.setAttribute("crossorigin","anonymous");
+    script.setAttribute("async","");
+    cm.appendChild(script);
+
+    int=self.setInterval("iFrameLoading()",200);
+}
+
+function iFrameLoading(){
+    var utterances=document.getElementsByClassName('utterances');
+    if(utterances.length==1){
+        if(utterances[0].style.height!=""){
+            utterancesLoad=1;
+            int=window.clearInterval(int);
+            document.getElementById("cmButton").style.display="none";
+            console.log("utterances Load OK");
+        }
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    const createClipboardHTML = (codeContent, additionalClasses = '') => `
+        <pre class="notranslate"><code class="notranslate">${codeContent}</code></pre>
+        <div class="clipboard-container position-absolute right-0 top-0 ${additionalClasses}">
+            <clipboard-copy class="ClipboardButton btn m-2 p-0" role="button" style="display: inherit;">
+                <svg height="16" width="16" class="octicon octicon-copy m-2"><path d="${IconList["copy"]}"></path></svg>
+                <svg height="16" width="16" class="octicon octicon-check color-fg-success m-2 d-none"><path d="${IconList["check"]}"></path></svg>
+            </clipboard-copy>
+            <div class="copy-feedback">Copied!</div>
+        </div>
+    `;
+
+    const handleCodeElements = (selector = '') => {
+        document.querySelectorAll(selector).forEach(codeElement => {
+            const codeContent = codeElement.innerHTML;
+            const newStructure = document.createElement('div');
+            newStructure.className = 'snippet-clipboard-content position-relative overflow-auto';
+            newStructure.innerHTML = createClipboardHTML(codeContent);
+
+            const parentElement = codeElement.parentElement;
+            if (selector.includes('highlight')) {
+                parentElement.insertBefore(newStructure, codeElement.nextSibling);
+                parentElement.removeChild(codeElement);
+            } else {
+                parentElement.parentElement.replaceChild(newStructure, parentElement);
+            }
+        });
+    };
+
+    handleCodeElements('pre.notranslate > code.notranslate');
+    handleCodeElements('div.highlight > pre.notranslate');
+
+    let currentFeedback = null;
+    document.querySelectorAll('clipboard-copy').forEach(copyButton => {
+        copyButton.addEventListener('click', () => {
+            const codeContent = copyButton.closest('.snippet-clipboard-content').innerText;
+            const tempTextArea = document.createElement('textarea');
+            tempTextArea.value = codeContent;
+            document.body.appendChild(tempTextArea);
+            tempTextArea.select();
+            document.execCommand('copy');
+            document.body.removeChild(tempTextArea);
+
+            const copyIcon = copyButton.querySelector('.octicon-copy');
+            const checkIcon = copyButton.querySelector('.octicon-check');
+            const copyFeedback = copyButton.nextElementSibling;
+
+            if (currentFeedback && currentFeedback !== copyFeedback) {currentFeedback.style.display = 'none';}
+            currentFeedback = copyFeedback;
+
+            copyIcon.classList.add('d-none');
+            checkIcon.classList.remove('d-none');
+            copyFeedback.style.display = 'block';
+            copyButton.style.borderColor = 'var(--color-success-fg)';
+
+            setTimeout(() => {
+                copyIcon.classList.remove('d-none');
+                checkIcon.classList.add('d-none');
+                copyFeedback.style.display = 'none';
+                copyButton.style.borderColor = '';
+            }, 2000);
+        });
+    });
+});
+
+</script>
+
+
+</html>
