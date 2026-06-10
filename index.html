@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="Ethan-a2 的个人主页，作为博客、作品集和常用链接的主入口。"
+    />
+    <meta name="theme-color" content="#080b16" />
+    <title>Ethan-a2 · Home Gateway</title>
+    <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="noise" aria-hidden="true"></div>
+    <div class="grid" aria-hidden="true"></div>
+
+    <header class="site-header">
+      <a class="brand" href="/" aria-label="Ethan-a2 首页">
+        <span class="brand-mark">E2</span>
+        <span>Ethan-a2</span>
+      </a>
+      <nav class="top-nav" data-nav aria-label="主导航"></nav>
+    </header>
+
+    <main>
+      <section class="hero" aria-labelledby="hero-title">
+        <div class="hero-copy">
+          <p class="status-line">
+            <span class="dot"></span>
+            200 OK · Main Domain Gateway
+          </p>
+          <h1 id="hero-title">
+            不是迷路，<br />这里就是入口。
+          </h1>
+          <p class="hero-lead" data-owner-intro>
+            这里是主域名总入口。把博客、项目、作品集和常用链接集中到一个 404 灵感的个人导航页。
+          </p>
+          <div class="hero-actions">
+            <a class="button primary" href="/blog/">进入博客</a>
+            <a class="button ghost" href="#portfolio">查看作品集</a>
+          </div>
+        </div>
+
+        <aside class="error-card" aria-label="404 风格展示卡片">
+          <div class="window-bar">
+            <span></span><span></span><span></span>
+          </div>
+          <p class="terminal-line">GET /home</p>
+          <p class="terminal-code" aria-label="404 inspired">4<span>0</span>4</p>
+          <p class="terminal-title">PAGE FOUND</p>
+          <p class="terminal-text">
+            The requested gateway exists. Choose a link and continue exploring.
+          </p>
+        </aside>
+      </section>
+
+      <section class="section" id="links" aria-labelledby="links-title">
+        <div class="section-heading">
+          <p class="eyebrow">LINKS</p>
+          <h2 id="links-title">常用入口</h2>
+        </div>
+        <div class="link-grid" data-quick-links></div>
+      </section>
+
+      <section class="section portfolio-section" id="portfolio" aria-labelledby="portfolio-title">
+        <div class="section-heading">
+          <p class="eyebrow">PORTFOLIO</p>
+          <h2 id="portfolio-title">作品集扩展区</h2>
+          <p>
+            这里预留给项目、页面复刻、设计案例或实验工具。新增内容只需要编辑配置文件。
+          </p>
+        </div>
+        <div class="portfolio-list" data-portfolio></div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <span>© <span data-year></span> Ethan-a2</span>
+      <span class="footer-separator">/</span>
+      <a href="https://github.com/Ethan-a2/Ethan-a2.github.io" target="_blank" rel="noreferrer">
+        Source
+      </a>
+    </footer>
+
+    <script src="site.config.js"></script>
+    <script src="script.js"></script>
+  </body>
+</html>
