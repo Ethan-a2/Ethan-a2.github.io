@@ -18,6 +18,10 @@ const colorMap = {
   violet: "#9f7cff",
   green: "#60f7ad",
   orange: "#ffb454",
+  leaf: "#3f6840",
+  water: "#4d9291",
+  peach: "#cf6463",
+  gold: "#c79a45",
 };
 
 document.querySelectorAll("[data-year]").forEach((element) => {

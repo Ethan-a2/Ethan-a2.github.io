@@ -1,6 +1,6 @@
 # Ethan-a2.github.io 本地使用说明
 
-这个仓库是一个纯静态 GitHub Pages 个人主页，用作主域名总入口。页面采用 404 / terminal 风格，可以集中放博客、作品集、GitHub、在线简历和其他常用链接。
+这个仓库是一个纯静态 GitHub Pages 个人主页，用作主域名总入口。页面采用《桃花源记》灵感的亮色田园风格，可以集中放博客、作品集、GitHub、在线简历和其他常用链接。
 
 ## 1. 你需要知道的文件
 
@@ -54,9 +54,9 @@ Ctrl + C
 owner: {
   name: "Ethan-a2",
   handle: "@Ethan-a2",
-  tagline: "个人主页 · 博客入口 · 作品集导航",
+  tagline: "桃花源记 · 博客入口 · 作品集导航",
   intro:
-    "这里是主域名总入口。把博客、项目、作品集和常用链接集中到一个 404 灵感的个人导航页。",
+    "以一卷清亮纸本作主页，在桃花、溪水与远山之间，收纳博客、作品集和常用链接。",
 },
 ```
 
@@ -137,7 +137,7 @@ quickLinks: [
 可用强调色：
 
 ```text
-cyan, violet, green, orange
+cyan, violet, green, orange, leaf, water, peach, gold
 ```
 
 示例：添加在线简历入口。
@@ -179,10 +179,10 @@ portfolio: [
     external: true,
   },
   {
-    name: "高仿 404 页面合集",
+    name: "桃花源记主页风格",
     type: "Design",
     href: "/404.html",
-    description: "基于 terminal / glitch 风格的错误页视觉实验。",
+    description: "基于《桃花源记》的亮色纸本与田园视觉实验。",
   },
   {
     name: "工具项目示例",
@@ -354,5 +354,5 @@ external: true
 
 ### 想换页面风格
 
-修改 `styles.css`。如果只是换文字和链接，不需要改样式文件。
+修改 `styles.css`。如果只是换文字和链接，不需要改样式文件；如果想调整桃花、远山、纸张质感，再改 `styles.css`。
 

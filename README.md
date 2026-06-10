@@ -1,11 +1,11 @@
 # Ethan-a2.github.io
 
-Ethan-a2 的个人主页仓库，用作主域名总入口。页面采用 404 / terminal 风格，用于集中跳转到博客、作品集、GitHub 和其他常用链接。
+Ethan-a2 的个人主页仓库，用作主域名总入口。页面采用《桃花源记》灵感的亮色田园风格，用于集中跳转到博客、作品集、GitHub 和其他常用链接。
 
 ## 文件结构
 
 - `index.html`：主页入口。
-- `404.html`：GitHub Pages 的 404 页面，沿用同一套视觉风格。
+- `404.html`：GitHub Pages 的迷路页面，沿用“不复得路”的桃源风格。
 - `site.config.js`：站点配置，导航、快捷链接和作品集都从这里维护。
 - `styles.css`：页面视觉样式。
 - `script.js`：把配置渲染到页面中。
@@ -18,6 +18,7 @@ Ethan-a2 的个人主页仓库，用作主域名总入口。页面采用 404 / t
 ```js
 navigation: [
   { label: "博客", href: "/blog/" },
+  { label: "桃花源记", href: "#taohuayuan" },
   { label: "作品集", href: "#portfolio" },
   { label: "GitHub", href: "https://github.com/Ethan-a2", external: true },
 ]
