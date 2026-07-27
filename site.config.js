@@ -7,10 +7,10 @@ window.siteConfig = {
       "以一卷清亮纸本作主页，在桃花、溪水与远山之间，收纳博客、作品集和常用链接。",
   },
   navigation: [
+    { label: "桃源入口", href: "#links" },
+    { label: "阡陌作品集", href: "#portfolio" },
     { label: "桃花源记", href: "#taohuayuan" },
     { label: "博客", href: "/blog/" },
-    { label: "作品集", href: "#portfolio" },
-    { label: "入口", href: "#links" },
     { label: "GitHub", href: "https://github.com/Ethan-a2", external: true },
   ],
   quickLinks: [
@@ -39,22 +39,22 @@ window.siteConfig = {
   ],
   portfolio: [
     {
-      name: "作品集占位 A",
-      type: "Project",
-      href: "#",
-      description: "替换为你的项目地址、在线 Demo 或案例页面。",
+      name: "Player",
+      type: "Web App",
+      href: "https://ethan-a2.github.io/player",
+      description: "在线播放器项目。",
     },
     {
-      name: "作品集占位 B",
-      type: "Design",
-      href: "#",
-      description: "适合放设计作品、页面复刻或视觉实验。",
+      name: "Stopwatch",
+      type: "Web App",
+      href: "https://ethan-a2.github.io/stopwatch/",
+      description: "在线秒表工具。",
     },
     {
-      name: "作品集占位 C",
-      type: "Lab",
-      href: "#",
-      description: "适合放工具、脚本、小应用和学习实验。",
+      name: "Ruler",
+      type: "Web App",
+      href: "https://ethan-a2.github.io/ruler/",
+      description: "在线尺子工具。",
     },
   ],
 };
