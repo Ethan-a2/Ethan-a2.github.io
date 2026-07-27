@@ -39,6 +39,18 @@ window.siteConfig = {
   ],
   portfolio: [
     {
+      name: "Eagle 2.16x Speculative Decoding",
+      type: "AI / Performance",
+      href: "https://github.com/Ethan-a2/Eagle-2.16x-acceleration-in-5-minutes",
+      description: "用一层 Llama 草稿模型实现 2.16x 推测解码加速，并验证逐字一致性。",
+    },
+    {
+      name: "Floor Plan Designer",
+      type: "Tool / SVG",
+      href: "https://github.com/Ethan-a2/Floor-plan-designer",
+      description: "单 HTML 文件实现的 2D 户型设计器，纯 SVG 与原生 JavaScript，零依赖。",
+    },
+    {
       name: "Player",
       type: "Web App",
       href: "https://ethan-a2.github.io/player",
