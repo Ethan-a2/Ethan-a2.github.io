@@ -47,7 +47,7 @@ window.siteConfig = {
     {
       name: "Floor Plan Designer",
       type: "Tool / SVG",
-      href: "https://github.com/Ethan-a2/Floor-plan-designer",
+      href: "https://ethan-a2.github.io/Floor-plan-designer/",
       description: "单 HTML 文件实现的 2D 户型设计器，纯 SVG 与原生 JavaScript，零依赖。",
     },
     {
